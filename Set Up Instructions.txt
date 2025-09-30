@@ -1,0 +1,33 @@
+python3.10
+install miniconda
+CUDA 11.8
+
+
+(base) C:\Users\19337577>D:
+
+(base) D:\>cd ConformalASTRA
+
+(base) D:\ConformalASTRA>conda create -n castra python=3.10
+
+(base) D:\ConformalASTRA>conda activate castra
+
+(castra) D:\ConformalASTRA>conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
+(The step above takes a while) 
+
+(castra) D:\ConformalASTRA>pip install -r general_requirements.txt
+(the above step had thop missing) 
+
+pip install thop
+(Successfully installed sympy-1.13.1 thop-0.1.1.post2209072238)
+(the above step had torch-geometric missing) 
+
+(castra) D:\ConformalASTRA>pip install torch-scatter torch-sparse torch-geometric -f https://data.pyg.org/whl/torch-2.5.1+cu118.html
+
+(ModuleNotFoundError: No module named 'segmentation_models_pytorch')
+
+(castra) D:\ConformalASTRA>pip install segmentation-models-pytorch
+
+python astraspcivisual.py
+
+
+finally run! 

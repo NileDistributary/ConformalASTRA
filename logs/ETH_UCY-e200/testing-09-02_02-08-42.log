@@ -1,0 +1,11 @@
+Host name: MartyPC
+User name: niler
+Python Version: 3.10.18 (main, Jun  5 2025, 13:14:17) [GCC 11.2.0]
+PyTorch Version: 2.5.1
+Experiment Name: ETH_UCY-e200
+Dataset Name: ETH_UCY
+Subset Name: eth
+Device: cpu
+Done Loading Testing Dataset: 364 testing samples: 
+ASTRA Model is built.
+Using Pretrained U-Net Embedding Extractor.

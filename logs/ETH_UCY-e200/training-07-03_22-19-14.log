@@ -1,0 +1,7 @@
+Host name: LAPTOP-U7BPK2GO
+User name: niler
+Python Version: 3.10.0 (tags/v3.10.0:b494f59, Oct  4 2021, 19:00:18) [MSC v.1929 64 bit (AMD64)]
+PyTorch Version: 2.0.1+cu117
+Experiment Name: ETH_UCY-e200
+Dataset Name: ETH_UCY
+Subset Name: eth

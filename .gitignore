@@ -1,0 +1,10 @@
+__pycache__
+*.pyc
+*.pyo  
+
+data/__pycache__
+datasets
+models/__pycache__
+
+src
+venv310
