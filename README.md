@@ -38,8 +38,6 @@ While ASTRA originally uses a Conditional Variational Auto-Encoder (CVAE) to mod
 ⚠️ **Important:** If you're on a public or restricted Windows machine, **do not use PowerShell**.  
 Instead, open the **Anaconda Prompt** (installed with Miniconda or Anaconda) and run all commands from there. This avoids permission issues and ensures Conda works correctly.
 
-### Windows Instructions (via Anaconda Prompt)
-
 ```bash
 # Step 1: Create and activate Conda environment
 conda create -n castra python=3.10
@@ -57,27 +55,25 @@ pip install torch-scatter torch-sparse torch-geometric -f https://data.pyg.org/w
 pip install segmentation-models-pytorch
 ```
 
-✅ These steps have been tested and verified to work with the ConformalASTRA pipeline.
+✅ These steps have been tested and verified to work with the ConformalASTRA pipeline on both Windows and Linux/Mac systems.
 
 ---
 
 ## 📦 Download & Process Datasets
 
 > **ETH-UCY Dataset (Bird's Eye View - BEV)**  
-Download ETH dataset, videos and annotations, and process them using:
 
+**Linux/Mac:**
 ```bash
 bash ./scripts/down_process_eth.bash
 ```
 
-> **PIE Dataset (Ego Vehicle View - EVV)**  
-Download PIE dataset, videos and annotations, and process them using:
-
-```bash
-bash ./scripts/down_process_PIE.bash
+**Windows:**
+```cmd
+scripts\down_process_eth.bat
 ```
 
-The datasets will be downloaded and structured as expected by ASTRA.
+The dataset will be downloaded and structured as expected by ASTRA.
 
 ---
 
@@ -85,16 +81,28 @@ The datasets will be downloaded and structured as expected by ASTRA.
 
 > **U-Net Keypoint Embedding Model**
 
+**Linux/Mac:**
 ```bash
 bash ./scripts/down_pretrained_unet_models.bash
+```
+
+**Windows:**
+```cmd
+scripts\down_pretrained_unet_models.bat
 ```
 
 Downloads pretrained U-Net weights into `./pretrained_unet_weights/`. These are used by default during ASTRA training.
 
 > **ASTRA Model Weights**
 
+**Linux/Mac:**
 ```bash
 bash ./scripts/down_pretrained_astra_models.bash
+```
+
+**Windows:**
+```cmd
+scripts\down_pretrained_astra_models.bat
 ```
 
 Downloads pretrained ASTRA weights into `./pretrained_astra_weights/`.
@@ -109,7 +117,7 @@ Once setup is complete, run:
 python astraspcivisual.py
 ```
 
-This script integrates ASTRA’s scene-aware predictions with conformal uncertainty intervals.
+This script integrates ASTRA's scene-aware predictions with conformal uncertainty intervals.
 
 ---
 
