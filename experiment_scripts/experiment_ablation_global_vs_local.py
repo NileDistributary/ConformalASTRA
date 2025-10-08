@@ -1,6 +1,6 @@
 """
-Ablation Study 1: Rank Approximation
-Tests how covariance matrix rank (r) affects coverage and volume.
+Ablation Study 5: Global vs Local Ellipsoids
+Tests whether local ellipsoid adaptation improves performance.
 """
 import numpy as np
 import torch
@@ -18,14 +18,18 @@ from utils.misc import set_seed
 from helpers.MultiDim_SPCI_class import SPCI_and_EnbPI
 from astra_wrapper import ASTRASklearnWrapper
 import time
-from experiment_utils import (
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from utils.experiment_utils import (
     save_results_to_csv, 
     save_figure,
     print_experiment_header
 )
 
 
-def prepare_data(cfg, subset='eth', split_ratio=0.8):
+def prepare_data(cfg, subset='eth', split_ratio=0.90):
     """Load and prepare data"""
     reshape_size = cfg.DATA.MIN_RESHAPE_SIZE
     mean = cfg.DATA.MEAN
@@ -82,11 +86,13 @@ def prepare_data(cfg, subset='eth', split_ratio=0.8):
     return X_train, Y_train, X_test, Y_test
 
 
-def run_with_rank(astra_wrapper, X_train, Y_train, X_test, Y_test, 
-                  rank, alpha=0.1, past_window=100):
-    """Run MultiDimSPCI with specific rank"""
+def run_with_ellipsoid_type(astra_wrapper, X_train, Y_train, X_test, Y_test,
+                            use_local, alpha=0.1, rank=None, past_window=10):
+    """Run MultiDimSPCI with global or local ellipsoids"""
+    ellipsoid_type = "Local Ellipsoids" if use_local else "Global Ellipsoid"
+    
     print(f"\n{'='*70}")
-    print(f"Testing Rank: {rank if rank is not None else 'Full'}")
+    print(f"Testing: {ellipsoid_type}")
     print('='*70)
     
     start_time = time.time()
@@ -102,9 +108,9 @@ def run_with_rank(astra_wrapper, X_train, Y_train, X_test, Y_test,
         fit_func=astra_wrapper
     )
     
-    # Set rank
     spci.r = rank
-    spci.use_local_ellipsoid = False
+    # KEY: Set use_local_ellipsoid parameter
+    spci.use_local_ellipsoid = use_local  # This is what we're testing!
     
     Y_pred_calib = astra_wrapper.predict(X_train)
     Y_pred_test = astra_wrapper.predict(X_test)
@@ -143,71 +149,89 @@ def run_with_rank(astra_wrapper, X_train, Y_train, X_test, Y_test,
     print(f"  Time: {elapsed_time:.2f}s")
     
     return {
-        'rank': rank if rank is not None else 'full',
+        'ellipsoid_type': ellipsoid_type,
+        'use_local': use_local,
         'coverage': coverage,
         'volume': volume,
         'time': elapsed_time
     }
 
 
-def plot_rank_results(results):
-    """Create visualization for rank ablation"""
+def plot_ellipsoid_comparison(results):
+    """Create visualization comparing global vs local ellipsoids"""
     fig, axes = plt.subplots(1, 3, figsize=(15, 4))
     
-    ranks = [r['rank'] for r in results]
-    rank_labels = [str(r) if r != 'full' else 'Full' for r in ranks]
+    types = [r['ellipsoid_type'] for r in results]
+    type_labels = ['Global\nEllipsoid', 'Local\nEllipsoids']
     coverages = [r['coverage'] * 100 for r in results]
     volumes = [r['volume'] for r in results]
     times = [r['time'] for r in results]
     
-    # Coverage vs Rank
+    colors = ['#9B59B6', '#3498DB']
+    
+    # Coverage comparison
     ax = axes[0]
-    ax.plot(range(len(ranks)), coverages, 'o-', linewidth=2, markersize=8)
+    bars = ax.bar(type_labels, coverages, color=colors, alpha=0.7, edgecolor='black', linewidth=2)
     ax.axhline(90, color='red', linestyle='--', linewidth=2, label='Target (90%)')
-    ax.set_xlabel('Rank Configuration', fontsize=12)
     ax.set_ylabel('Coverage (%)', fontsize=12)
-    ax.set_title('Coverage vs Rank', fontsize=14, fontweight='bold')
-    ax.set_xticks(range(len(ranks)))
-    ax.set_xticklabels(rank_labels)
-    ax.grid(True, alpha=0.3)
+    ax.set_title('Coverage Comparison', fontsize=14, fontweight='bold')
     ax.legend()
+    ax.grid(True, alpha=0.3, axis='y')
     
-    # Volume vs Rank
+    # Add value labels on bars
+    for bar, val in zip(bars, coverages):
+        height = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width()/2., height,
+                f'{val:.1f}%', ha='center', va='bottom', fontsize=11, fontweight='bold')
+    
+    # Volume comparison
     ax = axes[1]
-    ax.plot(range(len(ranks)), volumes, 's-', linewidth=2, markersize=8, color='orange')
-    ax.set_xlabel('Rank Configuration', fontsize=12)
+    bars = ax.bar(type_labels, volumes, color=colors, alpha=0.7, edgecolor='black', linewidth=2)
     ax.set_ylabel('Average Volume', fontsize=12)
-    ax.set_title('Volume vs Rank', fontsize=14, fontweight='bold')
-    ax.set_xticks(range(len(ranks)))
-    ax.set_xticklabels(rank_labels)
-    ax.grid(True, alpha=0.3)
+    ax.set_title('Volume Comparison', fontsize=14, fontweight='bold')
     ax.set_yscale('log')
+    ax.grid(True, alpha=0.3, axis='y')
     
-    # Time vs Rank
+    # Add value labels
+    for bar, val in zip(bars, volumes):
+        height = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width()/2., height,
+                f'{val:.2e}', ha='center', va='bottom', fontsize=9, fontweight='bold')
+    
+    # Add improvement percentage
+    if len(volumes) == 2:
+        improvement = (1 - volumes[1] / volumes[0]) * 100
+        ax.text(0.5, 0.95, f'Volume reduction: {improvement:.1f}%',
+                transform=ax.transAxes, ha='center', va='top',
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5),
+                fontsize=10, fontweight='bold')
+    
+    # Time comparison
     ax = axes[2]
-    ax.plot(range(len(ranks)), times, '^-', linewidth=2, markersize=8, color='green')
-    ax.set_xlabel('Rank Configuration', fontsize=12)
+    bars = ax.bar(type_labels, times, color=colors, alpha=0.7, edgecolor='black', linewidth=2)
     ax.set_ylabel('Computation Time (s)', fontsize=12)
-    ax.set_title('Time vs Rank', fontsize=14, fontweight='bold')
-    ax.set_xticks(range(len(ranks)))
-    ax.set_xticklabels(rank_labels)
-    ax.grid(True, alpha=0.3)
+    ax.set_title('Time Comparison', fontsize=14, fontweight='bold')
+    ax.grid(True, alpha=0.3, axis='y')
+    
+    # Add value labels
+    for bar, val in zip(bars, times):
+        height = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width()/2., height,
+                f'{val:.1f}s', ha='center', va='bottom', fontsize=11, fontweight='bold')
     
     plt.tight_layout()
     return fig
 
 
 if __name__ == "__main__":
-    print_experiment_header("ABLATION STUDY: RANK APPROXIMATION")
+    print_experiment_header("ABLATION STUDY: GLOBAL VS LOCAL ELLIPSOIDS")
     
     # Configuration
     config_path = 'configs/eth.yaml'
     subset = 'eth'
     alpha = 0.1
+    rank = None
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    
-    # Test different ranks (including None for full rank)
-    ranks_to_test = [4, 8, 12, 16, 20, None]
     
     set_seed(42)
     
@@ -229,33 +253,58 @@ if __name__ == "__main__":
     )
     astra_wrapper.fit(X_train, Y_train)
     
-    # Run experiments for each rank
+    # Test both ellipsoid types
     all_results = []
-    for rank in ranks_to_test:
-        result = run_with_rank(
-            astra_wrapper, X_train, Y_train, X_test, Y_test,
-            rank=rank, alpha=alpha
-        )
-        all_results.append(result)
-        
-        # Save individual result
-        save_results_to_csv({
-            'experiment': 'rank_ablation',
-            'subset': subset,
-            'alpha': alpha,
-            **result
-        }, 'ablation_rank', append=True)
+    
+    # 1. Global Ellipsoid
+    result_global = run_with_ellipsoid_type(
+        astra_wrapper, X_train, Y_train, X_test, Y_test,
+        use_local=False, alpha=alpha, rank=rank
+    )
+    all_results.append(result_global)
+    
+    save_results_to_csv({
+        'experiment': 'global_vs_local',
+        'subset': subset,
+        'alpha': alpha,
+        'rank': rank,
+        **result_global
+    }, 'ablation_global_vs_local', append=True)
+    
+    # 2. Local Ellipsoids
+    result_local = run_with_ellipsoid_type(
+        astra_wrapper, X_train, Y_train, X_test, Y_test,
+        use_local=True, alpha=alpha, rank=rank
+    )
+    all_results.append(result_local)
+    
+    save_results_to_csv({
+        'experiment': 'global_vs_local',
+        'subset': subset,
+        'alpha': alpha,
+        'rank': rank,
+        **result_local
+    }, 'ablation_global_vs_local', append=True)
     
     # Create and save visualization
-    fig = plot_rank_results(all_results)
-    save_figure(fig, 'ablation_rank', 'rank_comparison', timestamp=True)
+    fig = plot_ellipsoid_comparison(all_results)
+    save_figure(fig, 'ablation_global_vs_local', 'ellipsoid_comparison', timestamp=True)
     # Print summary
     print("\n" + "="*70)
-    print("RANK ABLATION SUMMARY")
+    print("GLOBAL VS LOCAL ELLIPSOIDS SUMMARY")
     print("="*70)
     for result in all_results:
-        print(f"Rank {result['rank']}: "
-              f"Coverage={result['coverage']*100:.2f}%, "
-              f"Volume={result['volume']:.2e}, "
-              f"Time={result['time']:.2f}s")
+        print(f"\n{result['ellipsoid_type']}:")
+        print(f"  Coverage: {result['coverage']*100:.2f}%")
+        print(f"  Volume: {result['volume']:.2e}")
+        print(f"  Time: {result['time']:.2f}s")
+    
+    # Calculate improvements
+    if len(all_results) == 2:
+        vol_improvement = (1 - result_local['volume'] / result_global['volume']) * 100
+        time_overhead = ((result_local['time'] / result_global['time']) - 1) * 100
+        print(f"\nLocal Ellipsoid Improvements:")
+        print(f"  Volume reduction: {vol_improvement:.1f}%")
+        print(f"  Coverage change: {(result_local['coverage'] - result_global['coverage'])*100:.2f} percentage points")
+        print(f"  Time overhead: {time_overhead:.1f}%")
     print("="*70)

@@ -26,7 +26,11 @@ from icecream import ic
 ic.disable()
 
 # Import our utilities
-from experiment_utils import (
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from utils.experiment_utils import (
     save_results_to_csv, 
     save_figure, 
     save_config,
@@ -36,7 +40,7 @@ from experiment_utils import (
 from baseline_coordinatewise import CoordinateWiseCP
 
 
-def prepare_data(cfg, subset='eth', split_ratio=0.8):
+def prepare_data(cfg, subset='eth', split_ratio=0.90):
     """Load and prepare data (same as castra3.py)"""
     reshape_size = cfg.DATA.MIN_RESHAPE_SIZE
     mean = cfg.DATA.MEAN
@@ -134,7 +138,7 @@ def run_coordinatewise(astra_wrapper, X_train, Y_train, X_test, Y_test,
 
 
 def run_multidimspci(astra_wrapper, X_train, Y_train, X_test, Y_test,
-                     alpha=0.1, rank=12, use_local=False):
+                     alpha=0.1, rank=None, use_local=False):
     """Run MultiDimSPCI (from castra3.py)"""
     print("\n" + "="*70)
     print("RUNNING: MultiDimSPCI")
@@ -185,7 +189,7 @@ def run_multidimspci(astra_wrapper, X_train, Y_train, X_test, Y_test,
         alpha=alpha,
         stride=1,
         smallT=False,
-        past_window=100,
+        past_window=10,
         use_SPCI=True
     )
     
@@ -265,7 +269,7 @@ if __name__ == "__main__":
     subset = 'eth'
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     alpha = 0.1
-    rank = 12
+    rank = None
     
     # Load config
     with open(config_path, 'r') as f:

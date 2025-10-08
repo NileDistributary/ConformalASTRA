@@ -18,14 +18,18 @@ from utils.misc import set_seed
 from helpers.MultiDim_SPCI_class import SPCI_and_EnbPI
 from astra_wrapper import ASTRASklearnWrapper
 import time
-from experiment_utils import (
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from utils.experiment_utils import (
     save_results_to_csv, 
     save_figure,
     print_experiment_header
 )
 
 
-def prepare_data(cfg, subset='eth', split_ratio=0.8):
+def prepare_data(cfg, subset='eth', split_ratio=0.90):
     """Load and prepare data"""
     reshape_size = cfg.DATA.MIN_RESHAPE_SIZE
     mean = cfg.DATA.MEAN
@@ -83,7 +87,7 @@ def prepare_data(cfg, subset='eth', split_ratio=0.8):
 
 
 def run_with_past_window(astra_wrapper, X_train, Y_train, X_test, Y_test,
-                         past_window, alpha=0.1, rank=12):
+                         past_window, alpha=0.1, rank=None):
     """Run MultiDimSPCI with specific past window size"""
     print(f"\n{'='*70}")
     print(f"Past Window Size: {past_window}")
@@ -197,7 +201,7 @@ if __name__ == "__main__":
     config_path = 'configs/eth.yaml'
     subset = 'eth'
     alpha = 0.1
-    rank = 12
+    rank = None
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
     # Test different past window sizes

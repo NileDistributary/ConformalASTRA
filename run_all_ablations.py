@@ -37,12 +37,12 @@ def run_experiment(script_name, description):
     
     try:
         # Run the script (check=False to not raise exception on non-zero exit)
+        # NO TIMEOUT - experiments can take as long as needed
         result = subprocess.run(
             [sys.executable, script_name],
             capture_output=True,
             text=True,
-            check=False,  # Don't raise exception, we'll handle it manually
-            timeout=3600  # 1 hour timeout per experiment
+            check=False  # Don't raise exception, we'll handle it manually
         )
         
         elapsed = time.time() - start_time
@@ -76,18 +76,6 @@ def run_experiment(script_name, description):
                 'error': f"Exit code {result.returncode}: {result.stderr[:500]}"  # Truncate long errors
             }
         
-    except subprocess.TimeoutExpired:
-        elapsed = time.time() - start_time
-        print(f"\n✗ TIMEOUT: {description}")
-        print(f"Experiment exceeded 1 hour time limit")
-        
-        return {
-            'experiment': description,
-            'status': 'timeout',
-            'time': elapsed,
-            'error': 'Experiment timeout (>1 hour)'
-        }
-        
     except Exception as e:
         elapsed = time.time() - start_time
         print(f"\n✗ UNEXPECTED ERROR: {description}")
@@ -117,7 +105,6 @@ def generate_summary_report(results):
     status_symbols = {
         'success': '✓',
         'failed': '✗',
-        'timeout': '⏱',
         'error': '⚠',
         'script_not_found': '?'
     }
@@ -137,17 +124,14 @@ def generate_summary_report(results):
     total_time = df['time'].sum()
     success_count = (df['status'] == 'success').sum()
     failed_count = (df['status'] == 'failed').sum()
-    timeout_count = (df['status'] == 'timeout').sum()
     error_count = (df['status'] == 'error').sum()
     not_found_count = (df['status'] == 'script_not_found').sum()
     total_count = len(df)
     
-    print(f"\n📊 Statistics:")
+    print(f"\n Statistics:")
     print(f"  Total experiments: {total_count}")
     print(f"  ✓ Successful: {success_count}")
     print(f"  ✗ Failed: {failed_count}")
-    if timeout_count > 0:
-        print(f"  ⏱ Timeout: {timeout_count}")
     if error_count > 0:
         print(f"  ⚠ Errors: {error_count}")
     if not_found_count > 0:
@@ -156,19 +140,20 @@ def generate_summary_report(results):
     
     # Success rate
     success_rate = (success_count / total_count) * 100 if total_count > 0 else 0
-    print(f"  📈 Success rate: {success_rate:.1f}%")
+    print(f"   Success rate: {success_rate:.1f}%")
     
     # Save summary to CSV
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    summary_file = f'./results/ablation_summary_{timestamp}.csv'
+    summary_file = f'./results/csvs/ablation_summary_{timestamp}.csv'
     
-    os.makedirs('./results', exist_ok=True)
+    os.makedirs('./results/csvs', exist_ok=True)
     df.to_csv(summary_file, index=False)
-    print(f"\n💾 Summary saved to: {summary_file}")
+    print(f"\n Summary saved to: {summary_file}")
     
     # If there were failures, save detailed error log
     if success_count < total_count:
-        error_file = f'./results/ablation_errors_{timestamp}.txt'
+        error_file = f'./results/errors/ablation_errors_{timestamp}.txt'
+        os.makedirs('./results/errors', exist_ok=True)
         with open(error_file, 'w') as f:
             f.write("ABLATION STUDIES ERROR LOG\n")
             f.write("="*80 + "\n\n")
@@ -189,30 +174,30 @@ def main():
     print_header("CONFORMAL ASTRA - COMPLETE ABLATION STUDY SUITE")
     print(f"Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
-    # Define all experiments
+    # Define all experiments (now in experiment_scripts folder)
     experiments = [
         {
-            'script': 'experiment_baseline_comparison.py',
+            'script': 'experiment_scripts/experiment_baseline_comparison.py',
             'description': 'Baseline Comparison (Coordinate-wise vs MultiDimSPCI)'
         },
         {
-            'script': 'experiment_ablation_rank.py',
+            'script': 'experiment_scripts/experiment_ablation_rank.py',
             'description': 'Ablation 1: Rank Approximation'
         },
         {
-            'script': 'experiment_ablation_calibration_size.py',
+            'script': 'experiment_scripts/experiment_ablation_calibration_size.py',
             'description': 'Ablation 2: Calibration Set Size'
         },
         {
-            'script': 'experiment_ablation_qr_vs_empirical.py',
+            'script': 'experiment_scripts/experiment_ablation_qr_vs_empirical.py',
             'description': 'Ablation 3: Quantile Regression vs Empirical Quantile'
         },
         {
-            'script': 'experiment_ablation_past_window.py',
+            'script': 'experiment_scripts/experiment_ablation_past_window.py',
             'description': 'Ablation 4: Past Window Size'
         },
         {
-            'script': 'experiment_ablation_global_vs_local.py',
+            'script': 'experiment_scripts/experiment_ablation_global_vs_local.py',
             'description': 'Ablation 5: Global vs Local Ellipsoids'
         }
     ]
@@ -233,7 +218,7 @@ def main():
         # Print progress
         completed = idx
         success_so_far = sum(1 for r in results if r['status'] == 'success')
-        print(f"\n📊 Progress: {completed}/{total_experiments} completed, {success_so_far} successful")
+        print(f"\nProgress: {completed}/{total_experiments} completed, {success_so_far} successful")
         
         # Small pause between experiments to avoid resource conflicts
         if idx < total_experiments:
@@ -254,15 +239,19 @@ def main():
         print("\nFailed experiments:")
         for r in failed:
             print(f"  - {r['experiment']} (status: {r['status']})")
-        print("\nCheck the error log for details on what went wrong.")
+        print("\nCheck the error log in results/errors/ for details.")
         print("You can re-run individual experiments manually to debug issues.")
         return 1
     else:
         print("\n✓✓✓ SUCCESS! All experiments completed successfully! ✓✓✓")
+        print("\nResults saved to:")
+        print("  - CSV files: results/csvs/")
+        print("  - Figures: results/figures/")
+        print("  - Configs: results/configs/")
         print("\nNext steps:")
-        print("  1. Check the results/ folder for CSV files with metrics")
-        print("  2. Check the figures/ folder for visualizations")
-        print("  3. Analyze the results to draw conclusions for your paper")
+        print("  1. Analyze the CSV files with metrics")
+        print("  2. Review the visualizations")
+        print("  3. Draw conclusions for your paper")
         return 0
 
 

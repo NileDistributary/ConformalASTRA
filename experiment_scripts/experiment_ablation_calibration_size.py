@@ -18,7 +18,11 @@ from utils.misc import set_seed
 from helpers.MultiDim_SPCI_class import SPCI_and_EnbPI
 from astra_wrapper import ASTRASklearnWrapper
 import time
-from experiment_utils import (
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from utils.experiment_utils import (
     save_results_to_csv, 
     save_figure,
     print_experiment_header
@@ -94,7 +98,7 @@ def prepare_data_with_split(cfg, subset='eth', calib_ratio=0.5, test_ratio=0.3):
 
 
 def run_with_calib_size(astra_wrapper, X_train, Y_train, X_test, Y_test,
-                        calib_size_fraction, alpha=0.1, rank=12):
+                        calib_size_fraction, alpha=0.1, rank=None):
     """Run MultiDimSPCI with specific calibration set size"""
     # Subsample calibration data
     n_calib_total = len(Y_train)
@@ -152,7 +156,7 @@ def run_with_calib_size(astra_wrapper, X_train, Y_train, X_test, Y_test,
         alpha=alpha,
         stride=1,
         smallT=False,
-        past_window=100,
+        past_window=10,
         use_SPCI=True
     )
     
@@ -220,7 +224,7 @@ if __name__ == "__main__":
     config_path = 'configs/eth.yaml'
     subset = 'eth'
     alpha = 0.1
-    rank = 12
+    rank = None
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
     # Test different calibration sizes

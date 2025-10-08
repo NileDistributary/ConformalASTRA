@@ -1,10 +1,13 @@
 """
-Experiment Utilities - FIXED FOR WINDOWS
+Experiment Utilities
 Common utilities for experiment scripts with proper encoding handling
+Filename: utils/experiment_utils.py
 """
 import os
 import csv
 from datetime import datetime
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend - won't display plots
 import matplotlib.pyplot as plt
 
 
@@ -17,11 +20,11 @@ def save_results_to_csv(results_dict, experiment_name, append=False):
         experiment_name: Name of the experiment for filename
         append: If True, append to existing file
     """
-    # Create results directory
-    os.makedirs('./results', exist_ok=True)
+    # Create results/csvs directory
+    os.makedirs('./results/csvs', exist_ok=True)
     
     # Create filename
-    csv_file = f'./results/{experiment_name}_results.csv'
+    csv_file = f'./results/csvs/{experiment_name}_results.csv'
     
     # Check if file exists
     file_exists = os.path.isfile(csv_file)
@@ -43,7 +46,7 @@ def save_results_to_csv(results_dict, experiment_name, append=False):
 
 def save_figure(fig, experiment_name, plot_name, timestamp=True):
     """
-    Save matplotlib figure
+    Save matplotlib figure without displaying
     
     Args:
         fig: Matplotlib figure object
@@ -51,18 +54,19 @@ def save_figure(fig, experiment_name, plot_name, timestamp=True):
         plot_name: Name for the plot
         timestamp: If True, add timestamp to filename
     """
-    # Create figures directory
-    os.makedirs('./figures', exist_ok=True)
+    # Create results/figures directory
+    os.makedirs('./results/figures', exist_ok=True)
     
     # Create filename
     if timestamp:
         ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f'./figures/{experiment_name}_{plot_name}_{ts}.png'
+        filename = f'./results/figures/{experiment_name}_{plot_name}_{ts}.png'
     else:
-        filename = f'./figures/{experiment_name}_{plot_name}.png'
+        filename = f'./results/figures/{experiment_name}_{plot_name}.png'
     
     # Save figure
     fig.savefig(filename, dpi=300, bbox_inches='tight')
+    plt.close(fig)  # Close figure to free memory
     
     # FIXED: Use ASCII-safe checkmark
     print(f"[OK] Figure saved to {filename}")
@@ -76,12 +80,12 @@ def save_config(config_dict, experiment_name):
         config_dict: Dictionary with configuration parameters
         experiment_name: Name of the experiment
     """
-    # Create results directory
-    os.makedirs('./results', exist_ok=True)
+    # Create results/configs directory
+    os.makedirs('./results/configs', exist_ok=True)
     
     # Create filename with timestamp
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    config_path = f'./results/{experiment_name}_config_{timestamp}.txt'
+    config_path = f'./results/configs/{experiment_name}_config_{timestamp}.txt'
     
     # Write configuration
     with open(config_path, 'w', encoding='utf-8') as f:
