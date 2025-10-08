@@ -1,127 +1,127 @@
 """
-Utilities for running and saving experiments
+Experiment Utilities - FIXED FOR WINDOWS
+Common utilities for experiment scripts with proper encoding handling
 """
 import os
 import csv
-import json
-import numpy as np
-import pandas as pd
 from datetime import datetime
-from pathlib import Path
-
-# Create results directory structure
-RESULTS_DIR = Path("results")
-RESULTS_DIR.mkdir(exist_ok=True)
-(RESULTS_DIR / "csvs").mkdir(exist_ok=True)
-(RESULTS_DIR / "figures").mkdir(exist_ok=True)
-(RESULTS_DIR / "models").mkdir(exist_ok=True)
+import matplotlib.pyplot as plt
 
 
-def get_timestamp():
-    """Get formatted timestamp for filenames"""
-    return datetime.now().strftime("%Y%m%d_%H%M%S")
-
-
-def save_results_to_csv(results_dict, experiment_name, append=True):
+def save_results_to_csv(results_dict, experiment_name, append=False):
     """
     Save experiment results to CSV file
     
-    Parameters:
-    -----------
-    results_dict : dict
-        Dictionary containing results (must have consistent keys for appending)
-    experiment_name : str
-        Name of experiment (e.g., 'baseline_comparison')
-    append : bool
-        If True, append to existing CSV. If False, create new file with timestamp
+    Args:
+        results_dict: Dictionary with experiment results
+        experiment_name: Name of the experiment for filename
+        append: If True, append to existing file
     """
-    csv_path = RESULTS_DIR / "csvs" / f"{experiment_name}.csv"
+    # Create results directory
+    os.makedirs('./results', exist_ok=True)
     
-    # Convert dict to DataFrame
-    df = pd.DataFrame([results_dict])
+    # Create filename
+    csv_file = f'./results/{experiment_name}_results.csv'
     
-    # Add timestamp column
-    df['timestamp'] = get_timestamp()
+    # Check if file exists
+    file_exists = os.path.isfile(csv_file)
     
-    if append and csv_path.exists():
-        # Append to existing file
-        df.to_csv(csv_path, mode='a', header=False, index=False)
-        print(f"✓ Results appended to {csv_path}")
-    else:
-        # Create new file
-        df.to_csv(csv_path, mode='w', header=True, index=False)
-        print(f"✓ Results saved to {csv_path}")
+    # Write to CSV
+    mode = 'a' if (append and file_exists) else 'w'
+    with open(csv_file, mode, newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=results_dict.keys())
+        
+        # Write header if new file
+        if not file_exists or not append:
+            writer.writeheader()
+        
+        writer.writerow(results_dict)
     
-    return csv_path
+    # FIXED: Use ASCII-safe checkmark
+    print(f"[OK] Results saved to {csv_file}")
 
 
-def save_figure(fig, experiment_name, description, timestamp=True):
+def save_figure(fig, experiment_name, plot_name, timestamp=True):
     """
-    Save matplotlib figure with proper naming
+    Save matplotlib figure
     
-    Parameters:
-    -----------
-    fig : matplotlib.figure.Figure
-        Figure to save
-    experiment_name : str
-        Name of experiment
-    description : str
-        Description of what the figure shows (e.g., 'coverage_vs_alpha')
-    timestamp : bool
-        Whether to add timestamp to filename
+    Args:
+        fig: Matplotlib figure object
+        experiment_name: Name of the experiment
+        plot_name: Name for the plot
+        timestamp: If True, add timestamp to filename
     """
+    # Create figures directory
+    os.makedirs('./figures', exist_ok=True)
+    
+    # Create filename
     if timestamp:
-        filename = f"{experiment_name}_{description}_{get_timestamp()}.png"
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'./figures/{experiment_name}_{plot_name}_{ts}.png'
     else:
-        filename = f"{experiment_name}_{description}.png"
+        filename = f'./figures/{experiment_name}_{plot_name}.png'
     
-    fig_path = RESULTS_DIR / "figures" / filename
-    fig.savefig(fig_path, dpi=300, bbox_inches='tight')
-    print(f"✓ Figure saved to {fig_path}")
+    # Save figure
+    fig.savefig(filename, dpi=300, bbox_inches='tight')
     
-    return fig_path
+    # FIXED: Use ASCII-safe checkmark
+    print(f"[OK] Figure saved to {filename}")
 
 
 def save_config(config_dict, experiment_name):
-    """Save experiment configuration as JSON"""
-    config_path = RESULTS_DIR / "csvs" / f"{experiment_name}_config.json"
+    """
+    Save experiment configuration to file
     
-    with open(config_path, 'w') as f:
-        json.dump(config_dict, f, indent=4)
+    Args:
+        config_dict: Dictionary with configuration parameters
+        experiment_name: Name of the experiment
+    """
+    # Create results directory
+    os.makedirs('./results', exist_ok=True)
     
-    print(f"✓ Config saved to {config_path}")
-    return config_path
+    # Create filename with timestamp
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    config_path = f'./results/{experiment_name}_config_{timestamp}.txt'
+    
+    # Write configuration
+    with open(config_path, 'w', encoding='utf-8') as f:
+        f.write(f"Experiment: {experiment_name}\n")
+        f.write(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write("="*70 + "\n\n")
+        
+        for key, value in config_dict.items():
+            f.write(f"{key}: {value}\n")
+    
+    # FIXED: Use ASCII-safe checkmark
+    print(f"[OK] Config saved to {config_path}")
 
 
-def load_results_csv(experiment_name):
-    """Load results CSV as DataFrame"""
-    csv_path = RESULTS_DIR / "csvs" / f"{experiment_name}.csv"
+def print_experiment_header(title):
+    """
+    Print formatted experiment header
     
-    if not csv_path.exists():
-        print(f"⚠ No results file found at {csv_path}")
-        return None
-    
-    df = pd.read_csv(csv_path)
-    print(f"✓ Loaded {len(df)} results from {csv_path}")
-    return df
-
-
-def print_experiment_header(experiment_name):
-    """Print formatted experiment header"""
+    Args:
+        title: Experiment title
+    """
     print("\n" + "="*70)
-    print(f"EXPERIMENT: {experiment_name.upper()}")
+    print(f"EXPERIMENT: {title}")
     print(f"Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("="*70 + "\n")
 
 
 def print_experiment_summary(results_dict):
-    """Print formatted summary of results"""
-    print("\n" + "-"*70)
-    print("RESULTS SUMMARY:")
-    print("-"*70)
+    """
+    Print formatted experiment summary
+    
+    Args:
+        results_dict: Dictionary with experiment results
+    """
+    print("\n" + "="*70)
+    print("EXPERIMENT SUMMARY")
+    print("="*70)
     for key, value in results_dict.items():
         if isinstance(value, float):
             print(f"  {key}: {value:.4f}")
         else:
             print(f"  {key}: {value}")
-    print("-"*70 + "\n")
+    print("="*70 + "\n")

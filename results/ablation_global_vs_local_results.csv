@@ -1,0 +1,3 @@
+experiment,subset,alpha,rank,ellipsoid_type,use_local,coverage,volume,time
+global_vs_local,eth,0.1,12,Global Ellipsoid,False,0.7945205479452054,1133.3762291226046,35.96042013168335
+global_vs_local,eth,0.1,12,Local Ellipsoids,True,0.7671232876712328,1543.274805933498,30.886416912078857

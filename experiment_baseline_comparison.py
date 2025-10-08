@@ -15,6 +15,8 @@ import torch.utils.data as data
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import cv2
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend
 import matplotlib.pyplot as plt
 from utils.misc import set_seed
 from helpers.MultiDim_SPCI_class import SPCI_and_EnbPI
@@ -328,8 +330,6 @@ if __name__ == "__main__":
     # Create and save comparison plot
     fig = create_comparison_plot(results_cw, results_spci, alpha)
     save_figure(fig, 'baseline_comparison', 'coverage_volume_time', timestamp=True)
-    plt.show()
-    
     # Print final summary
     print("\n" + "="*70)
     print("COMPARISON SUMMARY")
