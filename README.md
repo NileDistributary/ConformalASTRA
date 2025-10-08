@@ -36,7 +36,7 @@ While ASTRA originally uses a Conditional Variational Auto-Encoder (CVAE) to mod
 ## 🧪 Environment Setup
 For this project, we made use of the Conda package and environment management system and it is advisable that you begin by first installing **Minconda** or Anaconda to use it as well.
 
-⚠️ **Important:** If you're on a public or restricted Windows machine, **do not use PowerShell**.  
+⚠️ **Important:** If you're on a public or restricted Windows machine, **you may have issues using PowerShell**.  
 Instead, open the **Anaconda Prompt** (installed with Miniconda or Anaconda) and run all commands from there. This avoids permission issues and ensures Conda works correctly.
 
 ```bash
