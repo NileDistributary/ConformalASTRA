@@ -383,7 +383,7 @@ class SPCI_and_EnbPI():
         self.common_params = dict(n_estimators = self.n_estimators,
                                   max_depth = self.max_d,
                                   criterion = self.criterion,
-                                  n_jobs = -1)
+                                  n_jobs = -1,random_state=42)
         if residX[:-1].shape[0] > 10000:
             # see API ref. https://sklearn-quantile.readthedocs.io/en/latest/generated/sklearn_quantile.RandomForestQuantileRegressor.html?highlight=RandomForestQuantileRegressor#sklearn_quantile.RandomForestQuantileRegressor
             # NOTE, should NOT warm start, as it makes result poor
