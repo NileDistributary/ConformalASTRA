@@ -1,0 +1,8 @@
+{
+    "experiment": "baseline_comparison",
+    "subset": "eth",
+    "alpha": 0.1,
+    "rank": 12,
+    "device": "cuda",
+    "split_ratio": 0.8
+}

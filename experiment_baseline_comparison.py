@@ -20,6 +20,8 @@ from utils.misc import set_seed
 from helpers.MultiDim_SPCI_class import SPCI_and_EnbPI
 from astra_wrapper import ASTRASklearnWrapper
 import time
+from icecream import ic
+ic.disable()
 
 # Import our utilities
 from experiment_utils import (

@@ -1,176 +1,159 @@
 """
-Coordinate-wise Conformal Prediction Baseline
-
-Applies 1D conformal prediction independently to each coordinate (x, y at each timestep).
-This is the naive baseline that MultiDimSPCI should outperform.
+Baseline: Coordinate-wise Conformal Prediction
+Fixed version - corrected quantile forest usage
 """
 import numpy as np
 from sklearn_quantile import RandomForestQuantileRegressor
 
-
 class CoordinateWiseCP:
     """
-    Coordinate-wise conformal prediction.
-    
-    For a 24D trajectory (12 timesteps × 2 coords), this creates 24 separate
-    1D prediction intervals, resulting in a hyper-rectangular region.
+    Coordinate-wise conformal prediction baseline.
+    Creates independent prediction intervals for each output coordinate.
     """
-    
-    def __init__(self, alpha=0.1, use_quantile_regression=True, past_window=100):
-        """
-        Parameters:
-        -----------
-        alpha : float
-            Significance level (1-alpha = coverage target)
-        use_quantile_regression : bool
-            If True, use quantile regression. If False, use empirical quantile.
-        past_window : int
-            Window size for quantile regression
-        """
+    def __init__(self, alpha=0.1, use_quantile_regression=True):
         self.alpha = alpha
         self.use_quantile_regression = use_quantile_regression
-        self.past_window = past_window
-        
-        self.calib_residuals = None
-        self.test_residuals = None
+        self.quantiles = {}  # Store quantiles per coordinate
+        self.qrf_models = {}  # Store QRF models per coordinate
         self.intervals = None
         
     def calibrate(self, Y_calib, Y_pred_calib):
         """
-        Compute calibration residuals for each coordinate
+        Calibrate the conformal predictor
         
-        Parameters:
-        -----------
-        Y_calib : np.array, shape (n_calib, 24)
-            True values on calibration set
-        Y_pred_calib : np.array, shape (n_calib, 24)
-            Predicted values on calibration set
+        Args:
+            Y_calib: True values (n_calib, n_coords)
+            Y_pred_calib: Predicted values (n_calib, n_coords)
         """
-        # Compute absolute residuals for each coordinate
-        self.calib_residuals = np.abs(Y_calib - Y_pred_calib)  # Shape: (n_calib, 24)
+        print(f"  Calibrating on {len(Y_calib)} samples, {Y_calib.shape[1]} coordinates")
         
-        n_coords = self.calib_residuals.shape[1]
-        print(f"✓ Calibration: {self.calib_residuals.shape[0]} samples, {n_coords} coordinates")
-        
-    def predict_intervals(self, Y_pred_test, Y_test=None):
-        """
-        Compute prediction intervals for test set
-        
-        Parameters:
-        -----------
-        Y_pred_test : np.array, shape (n_test, 24)
-            Predicted values on test set
-        Y_test : np.array, shape (n_test, 24), optional
-            True values for coverage evaluation
-            
-        Returns:
-        --------
-        intervals : dict with keys 'lower', 'upper', each shape (n_test, 24)
-        """
-        n_test, n_coords = Y_pred_test.shape
+        residuals = np.abs(Y_calib - Y_pred_calib)
+        n_coords = residuals.shape[1]
         
         if self.use_quantile_regression:
-            # Use quantile regression for each coordinate
-            intervals_lower = np.zeros((n_test, n_coords))
-            intervals_upper = np.zeros((n_test, n_coords))
+            print("  Using quantile regression for adaptive intervals")
+            # For QR, we'll train models during prediction
+            # Store residuals for later
+            self.calib_residuals = residuals
+            self.Y_pred_calib = Y_pred_calib
+        else:
+            print("  Using fixed quantiles")
+            # Compute fixed quantile for each coordinate
+            for j in range(n_coords):
+                n = len(residuals)
+                q = np.ceil((n + 1) * (1 - self.alpha)) / n
+                self.quantiles[j] = np.quantile(residuals[:, j], q)
+    
+    def predict_intervals(self, Y_pred_test, Y_test=None):
+        """
+        Predict intervals for test data
+        
+        Args:
+            Y_pred_test: Predicted centers (n_test, n_coords)
+            Y_test: Optional true values for creating residuals
+        """
+        n_test, n_coords = Y_pred_test.shape
+        print(f"  Predicting intervals for {n_test} samples")
+        
+        if self.use_quantile_regression and Y_test is not None:
+            # Use quantile regression with sequential updates
+            print("  Training coordinate-wise quantile forests...")
+            self.intervals = np.zeros((n_test, n_coords, 2))
             
-            for coord_idx in range(n_coords):
-                # Get residuals for this coordinate
-                coord_residuals = self.calib_residuals[:, coord_idx]
+            for j in range(n_coords):
+                if j % 4 == 0:  # Print progress
+                    print(f"    Coordinate {j+1}/{n_coords}")
                 
-                if len(coord_residuals) < self.past_window:
-                    # Not enough data, use empirical quantile
-                    quantile = np.quantile(coord_residuals, 1 - self.alpha)
-                    intervals_lower[:, coord_idx] = Y_pred_test[:, coord_idx] - quantile
-                    intervals_upper[:, coord_idx] = Y_pred_test[:, coord_idx] + quantile
-                else:
-                    # Use quantile regression
-                    # Create sliding windows
-                    X_train = []
-                    for i in range(len(coord_residuals) - self.past_window):
-                        X_train.append(coord_residuals[i:i+self.past_window])
-                    X_train = np.array(X_train)
-                    y_train = coord_residuals[self.past_window:]
-                    
-                    # Fit quantile regressor
+                # Prepare training data: use past residuals as features
+                residuals_j = self.calib_residuals[:, j]
+                
+                # Create simple lagged features (past residual predicts future quantile)
+                # Use last 5 residuals as features
+                window = min(5, len(residuals_j))
+                X_train = []
+                y_train = []
+                
+                for i in range(window, len(residuals_j)):
+                    X_train.append(residuals_j[i-window:i])
+                    y_train.append(residuals_j[i])
+                
+                X_train = np.array(X_train)
+                y_train = np.array(y_train)
+                
+                if len(X_train) > 10:  # Need enough data
+                    # Train QRF with the desired quantile
+                    # FIXED: Pass quantiles during initialization
                     qrf = RandomForestQuantileRegressor(
                         n_estimators=10,
                         max_depth=2,
-                        random_state=42
+                        q=[1 - self.alpha],  # Specify quantiles here!
+                        n_jobs=-1
                     )
                     qrf.fit(X_train, y_train)
                     
-                    # Predict quantiles for test set
-                    # Use most recent calibration residuals as features
-                    for test_idx in range(n_test):
-                        if test_idx == 0:
-                            X_test = coord_residuals[-self.past_window:].reshape(1, -1)
-                        else:
-                            # Use previous test residuals if available
-                            recent_residuals = coord_residuals[-self.past_window+test_idx:].tolist()
-                            if Y_test is not None and test_idx > 0:
-                                test_residuals = np.abs(Y_test[:test_idx, coord_idx] - 
-                                                       Y_pred_test[:test_idx, coord_idx])
-                                recent_residuals.extend(test_residuals.tolist())
-                            X_test = np.array(recent_residuals[-self.past_window:]).reshape(1, -1)
+                    # For each test point, predict the quantile
+                    for i in range(n_test):
+                        # Use last 'window' calibration residuals as context
+                        X_test_i = residuals_j[-window:].reshape(1, -1)
                         
-                        quantile = qrf.predict(X_test, quantile=1-self.alpha)[0]
-                        intervals_lower[test_idx, coord_idx] = Y_pred_test[test_idx, coord_idx] - quantile
-                        intervals_upper[test_idx, coord_idx] = Y_pred_test[test_idx, coord_idx] + quantile
+                        # FIXED: Don't pass quantile parameter to predict()
+                        # The model already knows which quantiles to predict
+                        quantile_pred = qrf.predict(X_test_i)[0]
+                        
+                        # Create symmetric interval
+                        self.intervals[i, j, 0] = Y_pred_test[i, j] - quantile_pred
+                        self.intervals[i, j, 1] = Y_pred_test[i, j] + quantile_pred
+                        
+                        # Update residuals with actual residual if available
+                        if Y_test is not None and i < len(Y_test):
+                            new_resid = np.abs(Y_test[i, j] - Y_pred_test[i, j])
+                            residuals_j = np.append(residuals_j, new_resid)
+                else:
+                    # Fallback to empirical quantile
+                    q_val = np.quantile(residuals_j, 1 - self.alpha)
+                    for i in range(n_test):
+                        self.intervals[i, j, 0] = Y_pred_test[i, j] - q_val
+                        self.intervals[i, j, 1] = Y_pred_test[i, j] + q_val
         else:
-            # Simple empirical quantile for each coordinate
-            intervals_lower = np.zeros((n_test, n_coords))
-            intervals_upper = np.zeros((n_test, n_coords))
+            # Use fixed quantiles
+            print("  Using fixed quantiles for all test points")
+            self.intervals = np.zeros((n_test, n_coords, 2))
             
-            for coord_idx in range(n_coords):
-                quantile = np.quantile(self.calib_residuals[:, coord_idx], 1 - self.alpha)
-                intervals_lower[:, coord_idx] = Y_pred_test[:, coord_idx] - quantile
-                intervals_upper[:, coord_idx] = Y_pred_test[:, coord_idx] + quantile
-        
-        self.intervals = {
-            'lower': intervals_lower,
-            'upper': intervals_upper
-        }
+            for j in range(n_coords):
+                q_val = self.quantiles[j]
+                self.intervals[:, j, 0] = Y_pred_test[:, j] - q_val
+                self.intervals[:, j, 1] = Y_pred_test[:, j] + q_val
         
         return self.intervals
     
-    def evaluate_coverage(self, Y_test):
+    def evaluate_coverage(self, Y_true):
         """
-        Evaluate empirical coverage on test set
+        Evaluate coverage and average volume
         
-        Parameters:
-        -----------
-        Y_test : np.array, shape (n_test, 24)
-            True test values
+        Args:
+            Y_true: True values (n_test, n_coords)
             
         Returns:
-        --------
-        coverage : float
-            Proportion of test points covered
-        avg_volume : float
-            Average hyper-rectangle volume
+            coverage: Fraction of points inside intervals
+            volume: Average interval volume
         """
         if self.intervals is None:
             raise ValueError("Must call predict_intervals first")
         
-        lower = self.intervals['lower']
-        upper = self.intervals['upper']
-        
         # Check if each coordinate is covered
-        covered = (Y_test >= lower) & (Y_test <= upper)
+        lower = self.intervals[:, :, 0]
+        upper = self.intervals[:, :, 1]
         
-        # A sample is covered if ALL coordinates are covered
-        all_coords_covered = np.all(covered, axis=1)
-        coverage = np.mean(all_coords_covered)
+        # Coordinate-wise coverage
+        coord_covered = (Y_true >= lower) & (Y_true <= upper)
         
-        # Compute average hyper-rectangle volume
-        # Volume = product of interval widths
+        # Joint coverage: all coordinates must be covered
+        joint_covered = np.all(coord_covered, axis=1)
+        coverage = np.mean(joint_covered)
+        
+        # Volume: product of interval widths
         widths = upper - lower
         volumes = np.prod(widths, axis=1)
         avg_volume = np.mean(volumes)
         
         return coverage, avg_volume
-    
-    def get_results(self, Y_test):
-        """Convenience method matching SPCI interface"""
-        return self.evaluate_coverage(Y_test)
