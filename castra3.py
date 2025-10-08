@@ -331,8 +331,8 @@ if __name__ == "__main__":
         alpha=0.1,
         stride=1,
         smallT=False,
-        past_window=100,
-        use_SPCI=True  # ← This enables quantile regression!
+        past_window=10,
+        use_SPCI=True  # enables quantile regression
     )
     
     print("\n✓ Prediction intervals computed")
