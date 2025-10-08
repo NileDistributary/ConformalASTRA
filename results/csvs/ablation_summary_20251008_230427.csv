@@ -1,0 +1,31 @@
+experiment,status,time,error
+Baseline Comparison (Coordinate-wise vs MultiDimSPCI),failed,3.5183298587799072,"Exit code 1: Traceback (most recent call last):
+  File ""D:\ConformalASTRA\experiment_scripts\experiment_baseline_comparison.py"", line 13, in <module>
+    from data.eth import ETH_dataset
+ModuleNotFoundError: No module named 'data'
+"
+Ablation 1: Rank Approximation,failed,3.463493824005127,"Exit code 1: Traceback (most recent call last):
+  File ""D:\ConformalASTRA\experiment_scripts\experiment_ablation_rank.py"", line 9, in <module>
+    from data.eth import ETH_dataset
+ModuleNotFoundError: No module named 'data'
+"
+Ablation 2: Calibration Set Size,failed,3.5234181880950928,"Exit code 1: Traceback (most recent call last):
+  File ""D:\ConformalASTRA\experiment_scripts\experiment_ablation_calibration_size.py"", line 9, in <module>
+    from data.eth import ETH_dataset
+ModuleNotFoundError: No module named 'data'
+"
+Ablation 3: Quantile Regression vs Empirical Quantile,failed,3.4714412689208984,"Exit code 1: Traceback (most recent call last):
+  File ""D:\ConformalASTRA\experiment_scripts\experiment_ablation_qr_vs_empirical.py"", line 9, in <module>
+    from data.eth import ETH_dataset
+ModuleNotFoundError: No module named 'data'
+"
+Ablation 4: Past Window Size,failed,3.4737939834594727,"Exit code 1: Traceback (most recent call last):
+  File ""D:\ConformalASTRA\experiment_scripts\experiment_ablation_past_window.py"", line 9, in <module>
+    from data.eth import ETH_dataset
+ModuleNotFoundError: No module named 'data'
+"
+Ablation 5: Global vs Local Ellipsoids,failed,3.4666671752929688,"Exit code 1: Traceback (most recent call last):
+  File ""D:\ConformalASTRA\experiment_scripts\experiment_ablation_global_vs_local.py"", line 9, in <module>
+    from data.eth import ETH_dataset
+ModuleNotFoundError: No module named 'data'
+"

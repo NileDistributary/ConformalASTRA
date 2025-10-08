@@ -2,6 +2,11 @@
 Ablation Study 1: Rank Approximation
 Tests how covariance matrix rank (r) affects coverage and volume.
 """
+import sys
+import os
+# Add parent directory to path so we can import from root
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import numpy as np
 import torch
 import yaml
@@ -20,8 +25,6 @@ from astra_wrapper import ASTRASklearnWrapper
 import time
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from utils.experiment_utils import (
     save_results_to_csv, 
     save_figure,
