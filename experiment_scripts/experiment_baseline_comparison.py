@@ -291,7 +291,7 @@ if __name__ == "__main__":
         'alpha': alpha,
         'rank': rank,
         'device': device,
-        'split_ratio': 0.8
+        'split_ratio': 0.9
     }
     save_config(exp_config, 'baseline_comparison')
     

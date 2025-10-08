@@ -1,3 +1,0 @@
-experiment,subset,alpha,rank,method,use_qr,coverage,volume,time
-qr_vs_empirical,eth,0.1,12,Empirical Quantile (EnbPI),False,0.7945205479452054,378.50002778365877,10.071000814437866
-qr_vs_empirical,eth,0.1,12,Quantile Regression (SPCI),True,0.7945205479452054,1133.3762291226046,27.488260984420776
