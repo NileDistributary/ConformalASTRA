@@ -1,0 +1,10 @@
+Experiment: baseline_comparison
+Timestamp: 2025-10-09 00:44:36
+======================================================================
+
+experiment: baseline_comparison
+subset: eth
+alpha: 0.1
+rank: None
+device: cuda
+split_ratio: 0.9

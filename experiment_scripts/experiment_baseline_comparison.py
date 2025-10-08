@@ -246,12 +246,12 @@ def create_comparison_plot(results_cw, results_spci, alpha):
     ax.set_yscale('log')
     ax.grid(axis='y', alpha=0.3)
     
-    # Add efficiency improvement
-    improvement = (1 - volumes[1]/volumes[0]) * 100
-    ax.text(0.5, 0.95, f'MultiDimSPCI: {improvement:.1f}% smaller',
-            transform=ax.transAxes, ha='center', va='top',
-            bbox=dict(boxstyle='round', facecolor='lightgreen', alpha=0.7),
-            fontsize=10, fontweight='bold')
+    # # Add efficiency improvement
+    # improvement = (1 - volumes[1]/volumes[0]) * 100
+    # ax.text(0.5, 0.95, f'MultiDimSPCI: {improvement:.1f}% smaller',
+    #         transform=ax.transAxes, ha='center', va='top',
+    #         bbox=dict(boxstyle='round', facecolor='lightgreen', alpha=0.7),
+    #         fontsize=10, fontweight='bold')
     
     # Time comparison
     ax = axes[2]
