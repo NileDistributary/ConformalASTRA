@@ -1,0 +1,47 @@
+{
+  "baseline": {
+    "total_parameters": 35176,
+    "trainable_parameters": 35176,
+    "macs": 182528.0,
+    "macs_formatted": "182.528K",
+    "flops": 365056.0,
+    "flops_formatted": "365.056K",
+    "inference_time_ms": 2.574639004888013,
+    "inference_std_ms": 0.45757978486923295,
+    "uses_vae": false,
+    "uses_unet": true
+  },
+  "conformal": {
+    "base_model": {
+      "total_parameters": 35176,
+      "trainable_parameters": 35176,
+      "macs": 182528.0,
+      "macs_formatted": "182.528K",
+      "flops": 365056.0,
+      "flops_formatted": "365.056K",
+      "inference_time_ms": 2.574639004888013,
+      "inference_std_ms": 0.45757978486923295,
+      "uses_vae": false,
+      "uses_unet": true
+    },
+    "covariance_computation_ms": 280.0328000448644,
+    "svd_decomposition_ms": 0.3831000067293644,
+    "covariance_matrix_shape": [
+      24,
+      24
+    ],
+    "covariance_memory_mb": 0.00439453125,
+    "rank_approximation": null,
+    "quantile_estimator": {
+      "method": "Quantile Random Forest",
+      "n_estimators": 100,
+      "max_depth": null,
+      "min_samples_split": 2,
+      "min_samples_leaf": 1
+    },
+    "quantile_estimator_params": 240000,
+    "conformal_overhead_ms": 27.620699955150485,
+    "total_inference_ms": 30.195338960038498,
+    "alpha": 0.1
+  }
+}

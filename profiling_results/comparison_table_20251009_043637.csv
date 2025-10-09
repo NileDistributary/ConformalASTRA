@@ -1,0 +1,10 @@
+Metric,Baseline ASTRA,Conformal ASTRA
+Total Parameters,"35,176","35,176"
+Trainable Parameters,"35,176","35,176"
+FLOPs,365.056K,365.056K
+MACs,182.528K,182.528K
+Base Inference Time (ms),2.521 ± 0.344,2.521
+Conformal Overhead (ms),N/A,5094.709
+Total Inference Time (ms),2.521,5097.230
+Covariance Memory (MB),N/A,0.00
+Quantile Estimator Params,N/A,"1,680"

@@ -1,0 +1,23 @@
+ASTRA MODEL PROFILING SUMMARY
+======================================================================
+
+Timestamp: 20251009_044031
+Device: cuda
+Test runs: 100
+
+                   Metric Baseline ASTRA Conformal ASTRA
+         Total Parameters         35,176          35,176
+     Trainable Parameters         35,176          35,176
+                    FLOPs       365.056K        365.056K
+                     MACs       182.528K        182.528K
+ Base Inference Time (ms)  2.871 ± 0.552           2.871
+  Conformal Overhead (ms)            N/A        5100.305
+Total Inference Time (ms)          2.871        5103.176
+   Covariance Memory (MB)            N/A            0.00
+Quantile Estimator Params            N/A           1,680
+
+======================================================================
+KEY INSIGHTS:
+• Conformal overhead: 5100.31 ms
+• Memory overhead: 0.00 MB
+• Total slowdown: 1777.62x
