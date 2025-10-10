@@ -147,21 +147,18 @@ class ETH_dataset(object):
                     traj_coord = np.array([traj_coord])
                     pixel_coord = np.append(pixel_coord, traj_coord, axis = 0)
 
+                    
                     if self.img_transforms:
-                        # Check if the pixel Coord is out of range then set it to -1, -1
-                        # Since the agent is not properly visible in the frame
-                        h, w = img.shape[:-1]
-                        out_of_range_index = np.where(pixel_coord >= (h,w))[0]
-                        pixel_coord[out_of_range_index,:] = (h-1, w-1)
+                        # Clamp keypoints to image bounds before transformation
+                        h, w = img.shape[:2]
+                        pixel_coord[:, 0] = np.clip(pixel_coord[:, 0], 0, w - 1)  # x
+                        pixel_coord[:, 1] = np.clip(pixel_coord[:, 1], 0, h - 1)  # y
+
                         transformed = self.img_transforms(image=img, keypoints=pixel_coord)
                         img = transformed['image']
-                        pixel_coord = transformed['keypoints']
-                        pixel_coord = np.array(pixel_coord)
-                        if out_of_range_index.size != 0:
-                            pixel_coord[out_of_range_index,:] = (-1, -1)
-
-                        pixel_coord = pixel_coord.astype(np.int32)
+                        pixel_coord = np.array(transformed['keypoints']).astype(np.int32)
                         traj_coord = pixel_coord[-1,:].tolist()
+
 
                 img = img.unsqueeze(0).to(torch.float32)
                 # Setting up binary map to indicate if there exists keypoint or not

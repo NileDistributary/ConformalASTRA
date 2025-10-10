@@ -41,7 +41,7 @@ DATA:
 MODEL:
   USE_PRETRAINED_UNET: True
   USE_SOCIAL: False
-  USE_VAE: False  # Set True for stochastic predictions, False for deterministic predictions
+  USE_VAE: True  # Set True for stochastic predictions, False for deterministic predictions
   SPATIAL_DIM: 16
   UNET_DIM: 16  
   TEMP_DIM: 8 
