@@ -1,0 +1,7 @@
+Experiment Name: ETH_UCY-e200
+Dataset Name: ETH_UCY
+Subset Name: eth
+Device: cpu
+Loaded training dataset with 30307 samples.
+Loaded pretrained ASTRA model.
+Loaded pretrained U-Net embedding extractor.

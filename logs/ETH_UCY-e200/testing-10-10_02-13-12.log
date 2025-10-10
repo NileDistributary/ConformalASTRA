@@ -1,0 +1,13 @@
+Host name: DT7486E224B584
+User name: 19337577
+Python Version: 3.10.18 | packaged by Anaconda, Inc. | (main, Jun  5 2025, 13:08:55) [MSC v.1929 64 bit (AMD64)]
+PyTorch Version: 2.5.1
+Experiment Name: ETH_UCY-e200
+Dataset Name: ETH_UCY
+Subset Name: eth
+Config: None
+Device: cuda
+Num of GPUs: 1
+CUDA: 0 (NVIDIA RTX A6000, 49139MiB)
+Done Loading Training Dataset: 30,307 training samples: 
+Done Loading Testing Dataset: 364 testing samples: 
