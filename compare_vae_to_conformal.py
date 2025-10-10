@@ -30,6 +30,8 @@ from helpers.MultiDim_SPCI_class import SPCI_and_EnbPI
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 from scipy.stats import chi2
+from icecream import ic
+ic.disable()   # Disable debug prints
 
 from astra_wrapper import ASTRASklearnWrapper
 
@@ -603,6 +605,7 @@ def main():
     
     # Configuration
     config_path = './configs/eth.yaml'
+    config_path_vae = './configs/eth_vae.yaml'
     subset = 'eth'
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     alpha = 0.1  # 90% confidence
@@ -649,8 +652,8 @@ def main():
     
     # ========== STAGE 2: VAE Samples ==========
     vae_samples, K = generate_vae_samples(
-        X_test, config_path,
-        f'./pretrained_astra_weights/{subset}_best_model.pth',
+        X_test, config_path_vae,
+        f'./pretrained_astra_weights/{subset}_best_model_vae.pth',
         './pretrained_unet_weights/eth_unet_model_best.pt',
         device, subset
     )
