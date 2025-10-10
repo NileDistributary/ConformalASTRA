@@ -120,7 +120,11 @@ class ASTRASklearnWrapper(BaseEstimator, RegressorMixin):
         if self.pretrained_weights_path:
             checkpoint = torch.load(self.pretrained_weights_path, 
                                   map_location=torch.device(self.device))
-            self.model.load_state_dict(checkpoint)
+            missing, unexpected = self.model.load_state_dict(checkpoint, strict=False) # allow for possible missing parameters, debugging step, consider reverting, Nile Edit. 
+            print(f"Loaded checkpoint with {len(missing)} missing keys, {len(unexpected)} unexpected keys.")
+            if missing:
+                print("Missing (first 5):", missing[:5])
+
         
         # Set model to evaluation mode
         self.model.eval()

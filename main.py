@@ -8,7 +8,7 @@ from utils.misc import set_seed, set_device
 import socket
 import getpass
 from train_ETH import train_ETH
-from train_PIE import train_PIE
+#from train_PIE import train_PIE
 import torch
 from data.eth import ETH_dataset
 import torch.utils.data as data
