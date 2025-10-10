@@ -1,0 +1,7 @@
+Experiment Name: ETH_UCY-e200
+Dataset Name: ETH_UCY
+Subset Name: eth
+Device: cuda
+Num of GPUs: 1
+CUDA: 0 (NVIDIA RTX A6000, 49139MiB)
+Loaded training dataset with 30307 samples.

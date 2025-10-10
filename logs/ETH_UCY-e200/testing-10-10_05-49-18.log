@@ -1,0 +1,11 @@
+Experiment Name: ETH_UCY-e200
+Dataset Name: ETH_UCY
+Subset Name: eth
+Device: cuda
+Num of GPUs: 1
+CUDA: 0 (NVIDIA RTX A6000, 49139MiB)
+Loaded training dataset with 30307 samples.
+Loaded pretrained ASTRA model.
+Loaded pretrained U-Net embedding extractor.
+Epoch [1/200] - Loss: 0.08573
+Epoch [2/200] - Loss: 0.00009
