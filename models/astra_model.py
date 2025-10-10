@@ -215,6 +215,38 @@ class ASTRA_model(nn.Module):
                 mask[index, pedestrian::self.num_pedestrians] = 0.0
         return mask.to(self.device)
     
+    #Added to use pretrained ASTRA model for encoding in CVAE
+    def encode(self, trajectories, unet_features):
+        """
+        Encode trajectories into feature representations for CVAE.
+        Mimics the encoding process used internally in forward().
+        
+        Args:
+            trajectories: (Batch, Agents, Frames, 2) - past or future trajectories
+            unet_features: (Batch, Agents, feature_dim) - U-Net scene features
+        
+        Returns:
+            encodings: (Batch, Agents, encoding_dim) - encoded trajectory features
+        """
+        # Spatial encodings
+        spatial_features = trajectories.permute(0, 2, 1, 3)  # (Batch, Frames, Agents, 2)
+        spatial_encodings = self.xy_encoder(spatial_features)
+        
+        # Temporal encodings
+        # Check if encoding past (obs_len) or future (pred_len) trajectories
+        if trajectories.shape[2] == self.obs_len:
+            temporal_encodings = self.temporal_encoder()
+        else:
+            temporal_encodings = self.future_temporal_encoder()
+        
+        # Concatenate spatial and temporal encodings
+        encodings = torch.cat([spatial_encodings, temporal_encodings], dim=-1)
+        
+        # Reshape to (Batch, Agents, encoding_dim)
+        encodings = encodings.view(self.batch_size_device, self.num_pedestrians, -1)
+        
+        return encodings
+
     def forward(self, past_loc, fut_loc, unet_features, mode = 'train'):
 
         # Spatial Encodings (x, y)
