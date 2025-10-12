@@ -1,0 +1,84 @@
+Host name: DT7486E224B584
+User name: 19337577
+Python Version: 3.10.18 | packaged by Anaconda, Inc. | (main, Jun  5 2025, 13:08:55) [MSC v.1929 64 bit (AMD64)]
+PyTorch Version: 2.5.1
+Experiment Name: ETH_UCY-e200
+Dataset Name: ETH_UCY
+Subset Name: eth
+Config: None
+Device: cuda
+Num of GPUs: 1
+CUDA: 0 (NVIDIA RTX A6000, 49139MiB)
+Done Loading Training Dataset: 30,307 training samples: 
+Done Loading Testing Dataset: 364 testing samples: 
+ASTRA Model is built.
+Using Pretrained U-Net Embedding Extractor.
+params: 153.128K
+FLOPs: 1.980M
+MACs: 989.824K
+Loss, Optimizer, AND LR scheduler are built.
+Start training
+Best model saved at epoch 1.
+Best model saved at epoch 3.
+Best model saved at epoch 4.
+Best model saved at epoch 4.
+Best model saved at epoch 5.
+Best model saved at epoch 5.
+Best model saved at epoch 6.
+Best model saved at epoch 7.
+Best model saved at epoch 8.
+Best model saved at epoch 9.
+Best model saved at epoch 10.
+Best model saved at epoch 10.
+Best model saved at epoch 11.
+Best model saved at epoch 12.
+Best model saved at epoch 13.
+Best model saved at epoch 14.
+Best model saved at epoch 16.
+Best model saved at epoch 17.
+Best model saved at epoch 18.
+Best model saved at epoch 19.
+Best model saved at epoch 20.
+Best model saved at epoch 21.
+Best model saved at epoch 22.
+Best model saved at epoch 24.
+Best model saved at epoch 25.
+Best model saved at epoch 26.
+Best model saved at epoch 27.
+Best model saved at epoch 28.
+Best model saved at epoch 29.
+Best model saved at epoch 30.
+Best model saved at epoch 32.
+Best model saved at epoch 34.
+Best model saved at epoch 35.
+Best model saved at epoch 36.
+Best model saved at epoch 37.
+Best model saved at epoch 38.
+Best model saved at epoch 39.
+Best model saved at epoch 40.
+Best model saved at epoch 41.
+Best model saved at epoch 42.
+Best model saved at epoch 43.
+Best model saved at epoch 45.
+Best model saved at epoch 46.
+Best model saved at epoch 47.
+Best model saved at epoch 48.
+Best model saved at epoch 49.
+Best model saved at epoch 50.
+Best model saved at epoch 53.
+Best model saved at epoch 54.
+Best model saved at epoch 55.
+Best model saved at epoch 57.
+Best model saved at epoch 58.
+Best model saved at epoch 59.
+Best model saved at epoch 60.
+Best model saved at epoch 61.
+Best model saved at epoch 63.
+Best model saved at epoch 64.
+Best model saved at epoch 65.
+Best model saved at epoch 66.
+Best model saved at epoch 67.
+Best model saved at epoch 68.
+Best model saved at epoch 69.
+Best model saved at epoch 70.
+Best model saved at epoch 73.

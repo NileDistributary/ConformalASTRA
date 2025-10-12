@@ -1,6 +1,6 @@
 DATASET: 'ETH_UCY'
 SUBSET: 'eth' # 'eth', 'hotel', 'univ', 'zara01', 'zara02'
-MODE: 'testing' # 'training', 'testing'
+MODE: 'training' # 'training', 'testing'
 UNET_MODE: 'testing' # 'training', 'testing' (Use training while pretraining unet)
 BEST_ADE: 0.39
 BEST_FDE: 0.58
