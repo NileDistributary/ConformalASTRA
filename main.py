@@ -20,7 +20,7 @@ import cv2
 from icecream import ic
 import wandb
 
-# ic.disable()                # Enable (comment) to enable debugging
+ic.disable()                # Enable (comment) to enable debugging
 
 # wandb.init(name='univ_exp_pen')
 wandb.init(mode='dryrun')

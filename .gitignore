@@ -9,3 +9,4 @@ models/__pycache__
 src
 venv310
 *.pkl
+wandb/

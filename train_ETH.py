@@ -311,12 +311,21 @@ def val_one_epoch(cfg, epoch, val_loader, model, embedding_extractor, loss_fun, 
             # UNET Feature Extractor
             if cfg.MODEL.USE_PRETRAINED_UNET:
                 traj_coords = traj_coords.view(-1, 2)
-                imgs = imgs.view(-1, 3, 224, 224).to(gpu_num)
+                
+                # More explicit reshaping to avoid issues
+                if imgs.dim() == 5:  # [B, A, C, H, W]
+                    B, num_agents, C, H, W = imgs.shape
+                    imgs = imgs.reshape(B * num_agents, C, H, W).to(gpu_num)
+                else:  # Already correct shape
+                    imgs = imgs.view(-1, 3, 224, 224).to(gpu_num)
                 
                 # Forward Prop (Embedding Extractor)
                 _, _, extracted_features = embedding_extractor(imgs)
-                extracted_features = extracted_features.view(*past_loc.shape[:-1], -1)  
+                extracted_features = extracted_features.view(*past_loc.shape[:-1], -1)
                 unet_features = extracted_features.to(gpu_num)
+                
+                # Verify shape (optional, for debugging)
+                # print(f"DEBUG: unet_features.shape = {unet_features.shape}")  # Should be [B, A, T, feat_dim]
             else:
                 unet_features = None
                 
@@ -332,7 +341,7 @@ def val_one_epoch(cfg, epoch, val_loader, model, embedding_extractor, loss_fun, 
             fut_loc = fut_loc - mean_past_traj
 
             # prediction using model
-            _, _, K_pred_traj = model(past_loc, None, unet_features, mode = 'testing')
+            _, _, K_pred_traj, _, _, _ = model(past_loc, None, unet_features, mode='testing')
 
             # loss calculation
             loss = loss_fun(K_pred_traj, fut_loc, cfg, True)
