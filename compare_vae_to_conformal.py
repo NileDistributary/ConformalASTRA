@@ -469,21 +469,21 @@ def visualize_predictions(vae_samples, spci, Y_test, sample_idx, alpha, K):
     ax = ax3
     ax.axis('off')
     
-    metrics_text = f"""
-Sample {sample_idx} Metrics                                                    Configuration
-{'='*30}                                                    {'='*20}
+    metrics_text = f"""Sample {sample_idx} Metrics
+{'='*50}
 
-Stochastic (VAE):                                                  K Samples: {K}
-  minADE: {minADE:.4f}                                                      Coverage: {(1-alpha)*100:.0f}%
-  minFDE: {minFDE:.4f}
+Stochastic (VAE):                  Deterministic:
+  minADE: {minADE:.4f}                   ADE: {det_ADE:.4f}
+  minFDE: {minFDE:.4f}                   FDE: {det_FDE:.4f}
 
-Deterministic:
-  ADE: {det_ADE:.4f}
-  FDE: {det_FDE:.4f}
+Configuration:
+  K Samples: {K}
+  Coverage: {(1-alpha)*100:.0f}%
 """
     
-    ax.text(0.5, 0.5, metrics_text, fontsize=11, family='monospace',
-            verticalalignment='center', horizontalalignment='center')
+    ax.text(0.0, 1.0, metrics_text, fontsize=11, family='monospace',
+            verticalalignment='top', horizontalalignment='left',
+            transform=ax.transAxes)
     
     os.makedirs('results/figures', exist_ok=True)
     plt.savefig(f'results/figures/vae_conformal_predictions_sample_{sample_idx}.png', dpi=150, bbox_inches='tight')
@@ -574,7 +574,7 @@ def visualize_agreement(vae_samples, spci, Y_test, sample_idx, alpha, K):
     
     ax.set_title(f'Timestep 6: Agreement = {timestep_agreement[t]*100:.1f}%', 
                  fontsize=12, fontweight='bold')
-    ax.legend(loc='best', fontsize=8)
+    ax.legend(loc='best', fontsize=11)
     ax.grid(alpha=0.3)
     ax.axis('equal')
     
@@ -595,18 +595,18 @@ def visualize_agreement(vae_samples, spci, Y_test, sample_idx, alpha, K):
     ax = ax3
     ax.axis('off')
     
-    stats_text = f"""
-Sample {sample_idx} Statistics                                                    Configuration
-{'='*30}                                                    {'='*20}
+    stats_text = f"""Sample {sample_idx} Statistics
+{'='*50}
 
-Per-Timestep Agreement:                                            K Samples: {K}
-  Mean:  {timestep_agreement.mean()*100:.1f}%                                                      Coverage: {(1-alpha)*100:.0f}%
-  Min:   {timestep_agreement.min()*100:.1f}%
+Per-Timestep Agreement:            Configuration:
+  Mean:  {timestep_agreement.mean()*100:.1f}%                       K Samples: {K}
+  Min:   {timestep_agreement.min()*100:.1f}%                       Coverage: {(1-alpha)*100:.0f}%
   Max:   {timestep_agreement.max()*100:.1f}%
 """
     
-    ax.text(0.5, 0.5, stats_text, fontsize=11, family='monospace',
-            verticalalignment='center', horizontalalignment='center')
+    ax.text(0.0, 1.0, stats_text, fontsize=11, family='monospace',
+            verticalalignment='top', horizontalalignment='left',
+            transform=ax.transAxes)
     
     os.makedirs('results/figures', exist_ok=True)
     plt.savefig(f'results/figures/vae_conformal_agreement_sample_{sample_idx}.png', dpi=150, bbox_inches='tight')
@@ -703,7 +703,7 @@ def main():
     # STAGE 2: VAE Samples
     vae_samples, K = generate_vae_samples(
         X_test, config_path_vae,
-        f'./pretrained_astra_weights/{subset}_best_model_vae.pth',
+        f'./pretrained_astra_weights/{subset}_ADE_0.238_FDE_0.402_best_model.pth',
         './pretrained_unet_weights/eth_unet_model_best.pt',
         device, subset
     )
