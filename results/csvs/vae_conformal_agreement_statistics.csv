@@ -1,0 +1,4 @@
+sample_idx,K_samples,coverage_level,agreement_mean,agreement_min,agreement_max
+0,20,90.0,93.33333333333331,90.0,100.0
+1,20,90.0,78.33333333333331,60.0,95.0
+2,20,90.0,88.33333333333334,80.0,100.0

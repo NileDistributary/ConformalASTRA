@@ -31,17 +31,20 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 from scipy.stats import chi2
 from icecream import ic
+import pandas as pd
+import os
 ic.disable()   # Disable debug prints
 
 from astra_wrapper import ASTRASklearnWrapper
 
 
 # ============================================================================
-# DATA LOADING (from your castra.py)
+# DATA LOADING
 # ============================================================================
 
 def prepare_real_data(cfg, subset='eth', split_ratio=0.90):
-    """Load ETH-UCY data and split into calibration/test sets."""
+    """Load and prepare real ETH-UCY data for MultiDimSPCI."""
+    # Setup transforms
     reshape_size = cfg.DATA.MIN_RESHAPE_SIZE
     mean = cfg.DATA.MEAN
     std = cfg.DATA.STD
@@ -54,52 +57,78 @@ def prepare_real_data(cfg, subset='eth', split_ratio=0.90):
         ToTensorV2()
     ], keypoint_params=A.KeypointParams(format='yx'))
     
+    # CORRECT: mode='testing' loads ASTRA's holdout
     cfg.SUBSET = subset
     full_dataset = ETH_dataset(cfg, mode='testing', img_transforms=transforms)
     
+    # Create data loader
     loader = data.DataLoader(
-        full_dataset, batch_size=1, shuffle=False, 
-        pin_memory=True, drop_last=False
+        full_dataset,
+        batch_size=1,
+        shuffle=False,
+        pin_memory=True,
+        drop_last=False
     )
     
-    # Collect data
-    all_past, all_future, all_images, all_num_valid = [], [], [], []
+    # Collect all data
+    all_past_trajectories = []
+    all_future_trajectories = []
+    all_images = []
+    all_num_valid = []
     
-    for batch in loader:
-        past_loc, fut_loc, num_valid, imgs, _, _ = batch
-        all_past.append(past_loc.numpy())
-        all_future.append(fut_loc.numpy())
+    print("Loading data from ETH dataset...")
+    for batch_idx, batch in enumerate(loader):
+        past_loc, fut_loc, num_valid, imgs, gt_maps, traj_coords = batch
+        
+        all_past_trajectories.append(past_loc.numpy())
+        all_future_trajectories.append(fut_loc.numpy())
         all_images.append(imgs.numpy())
         all_num_valid.append(num_valid.numpy())
+        
+        if batch_idx % 100 == 0:
+            print(f"Processed {batch_idx}/{len(loader)} batches")
     
-    all_past = np.concatenate(all_past, axis=0)
-    all_future = np.concatenate(all_future, axis=0)
+    # Concatenate all data
+    all_past_trajectories = np.concatenate(all_past_trajectories, axis=0)
+    all_future_trajectories = np.concatenate(all_future_trajectories, axis=0)
     all_images = np.concatenate(all_images, axis=0)
     all_num_valid = np.concatenate(all_num_valid, axis=0)
     
-    # Split
-    n_samples = len(all_past)
+    # Split into train/test
+    n_samples = len(all_past_trajectories)
     n_train = int(n_samples * split_ratio)
     
+    # Training data (calibration)
     X_train = {
-        'past_trajectories': all_past[:n_train],
+        'past_trajectories': all_past_trajectories[:n_train],
         'images': all_images[:n_train],
         'num_valid': all_num_valid[:n_train]
     }
-    Y_train = all_future[:n_train].reshape(n_train, -1)
+    Y_train = all_future_trajectories[:n_train]
     
+    # Test data
     X_test = {
-        'past_trajectories': all_past[n_train:],
+        'past_trajectories': all_past_trajectories[n_train:],
         'images': all_images[n_train:],
         'num_valid': all_num_valid[n_train:]
     }
-    Y_test = all_future[n_train:].reshape(n_samples - n_train, -1)
+    Y_test = all_future_trajectories[n_train:]
     
-    return X_train, Y_train, X_test, Y_test
+    # Flatten Y for MultiDimSPCI
+    Y_train_flat = Y_train.reshape(len(Y_train), -1)
+    Y_test_flat = Y_test.reshape(len(Y_test), -1)
+    
+    print(f"\nData shapes:")
+    print(f"X_train past_trajectories: {X_train['past_trajectories'].shape}")
+    print(f"Y_train: {Y_train_flat.shape}")
+    print(f"X_test past_trajectories: {X_test['past_trajectories'].shape}")
+    print(f"Y_test: {Y_test_flat.shape}")
+    
+    return X_train, Y_train_flat, X_test, Y_test_flat
 
 
 # ============================================================================
-# STAGE 1: DETERMINISTIC CONFORMAL PREDICTION (from castra.py)
+# STAGE 1: COMPUTE CONFORMAL PREDICTION INTERVALS
 # ============================================================================
 
 def compute_conformal_regions(X_train, Y_train, X_test, Y_test, 
@@ -159,16 +188,16 @@ def compute_conformal_regions(X_train, Y_train, X_test, Y_test,
     print(f"  ✓ Test scores: mean={spci.test_et.mean():.4f}")
     
     # Step 4: Sequential prediction with quantile regression
+    
     print("[4/4] Computing prediction intervals with quantile regression...")
     spci.compute_Widths_Ensemble_online(
         alpha=alpha,
         stride=1,
         smallT=False,
         past_window=10,
-        use_SPCI=True  # Enables quantile regression
+        use_SPCI=True
     )
     
-    # Get results
     coverage, avg_size = spci.get_results()
     
     print("\n" + "="*70)
@@ -188,15 +217,11 @@ def compute_conformal_regions(X_train, Y_train, X_test, Y_test,
 
 def generate_vae_samples(X_test, config_path, pretrained_path, unet_path, 
                         device, subset):
-    """
-    Generate K stochastic samples from ASTRA with VAE enabled.
-    This uses a SEPARATE model instance with USE_VAE=True.
-    """
+    """Generate K stochastic samples from ASTRA with VAE enabled."""
     print("\n" + "="*70)
     print("STAGE 2: GENERATING VAE STOCHASTIC SAMPLES")
     print("="*70)
     
-    # Load config and enable VAE
     with open(config_path, 'r') as f:
         cfg = yaml.safe_load(f)
     cfg = munch.munchify(cfg)
@@ -210,7 +235,6 @@ def generate_vae_samples(X_test, config_path, pretrained_path, unet_path,
     print(f"  Overriding to USE_VAE: True")
     print(f"  K (samples per trajectory): {K}")
     
-    # Create VAE wrapper
     vae_wrapper = ASTRASklearnWrapper(
         config_path=config_path,
         pretrained_weights_path=pretrained_path,
@@ -220,11 +244,9 @@ def generate_vae_samples(X_test, config_path, pretrained_path, unet_path,
         dataset='ETH_UCY'
     )
     
-    # CRITICAL: Override config after initialization
     vae_wrapper.cfg.MODEL.USE_VAE = True
     vae_wrapper.cfg.MODEL.K = K
     
-    # Dummy fit (just initializes)
     dummy_X = {
         'past_trajectories': np.zeros((1, 8, 2)),
         'images': np.zeros((1, 224, 224, 3)),
@@ -232,7 +254,6 @@ def generate_vae_samples(X_test, config_path, pretrained_path, unet_path,
     }
     vae_wrapper.fit(dummy_X, np.zeros((1, 24)))
     
-    # Generate samples
     print(f"\nGenerating {K} samples for {len(X_test['past_trajectories'])} test trajectories...")
     vae_samples = vae_wrapper.predict(X_test, return_multiple_samples=True)
     
@@ -243,101 +264,65 @@ def generate_vae_samples(X_test, config_path, pretrained_path, unet_path,
 
 
 # ============================================================================
-# STAGE 3: COMPUTE COVERAGE METRICS
+# STAGE 3: COMPUTE AGREEMENT METRICS
 # ============================================================================
 
-def compute_coverage_metrics(vae_samples, spci, alpha=0.1):
-    """
-    Compute what % of VAE samples fall within conformal ellipsoids.
-    """
+def compute_agreement_metrics(vae_samples, spci, alpha=0.1):
+    """Compute what % of VAE samples fall within conformal ellipsoids."""
     print("\n" + "="*70)
-    print("STAGE 3: COMPUTING COVERAGE METRICS")
+    print("STAGE 3: COMPUTING AGREEMENT METRICS")
     print("="*70)
-    print("For each test trajectory:")
-    print("  1. Extract conformal prediction ellipsoid")
-    print("  2. Check which VAE samples fall inside")
-    print("  3. Compute coverage percentage")
     
-    n_test = len(vae_samples)
+    n_samples = vae_samples.shape[0]
     K = vae_samples.shape[1]
     
-    # Chi-squared threshold
-    dim = 24
-    threshold_joint = chi2.ppf(1 - alpha, df=dim)
+    conformal_centers = spci.Ensemble_pred_interval_centers
+    conformal_cov = spci.global_cov
+    
+    threshold_24d = chi2.ppf(1 - alpha, df=24)
     threshold_2d = chi2.ppf(1 - alpha, df=2)
     
-    joint_coverages = []
-    timestep_coverages = []
+    joint_agreements = np.zeros(n_samples)
+    timestep_agreements = np.zeros((n_samples, 12))
     
-    for i in range(n_test):
-        # Get conformal prediction for this sample
-        conformal_center = spci.Ensemble_pred_interval_centers[i]
-        conformal_cov = spci.global_cov  # Using global covariance
+    print(f"Computing agreement for {n_samples} samples...")
+    
+    for i in range(n_samples):
+        # Joint agreement (24D)
+        inside_count = sum(
+            1 for k in range(K)
+            if (vae_samples[i, k] - conformal_centers[i]) @ 
+               np.linalg.pinv(conformal_cov) @ 
+               (vae_samples[i, k] - conformal_centers[i]) <= threshold_24d
+        )
+        joint_agreements[i] = inside_count / K
         
-        # Get VAE samples
-        vae_samples_i = vae_samples[i]  # Shape: (K, 24)
-        
-        # --- Joint coverage (full 24D ellipsoid) ---
-        try:
-            cov_inv = np.linalg.inv(conformal_cov)
-        except np.linalg.LinAlgError:
-            cov_inv = np.linalg.pinv(conformal_cov)
-        
-        inside_joint = 0
-        for k in range(K):
-            diff = vae_samples_i[k] - conformal_center
-            dist_sq = diff @ cov_inv @ diff
-            if dist_sq <= threshold_joint:
-                inside_joint += 1
-        
-        joint_coverages.append(inside_joint / K)
-        
-        # --- Per-timestep coverage (12 independent 2D ellipses) ---
-        timestep_cov = np.zeros(12)
+        # Per-timestep agreement (2D)
         for t in range(12):
             idx = t * 2
-            center_2d = conformal_center[idx:idx+2]
+            center_2d = conformal_centers[i, idx:idx+2]
             cov_2d = conformal_cov[idx:idx+2, idx:idx+2]
+            cov_inv = np.linalg.pinv(cov_2d)
             
-            try:
-                cov_inv_2d = np.linalg.inv(cov_2d)
-            except np.linalg.LinAlgError:
-                cov_inv_2d = np.linalg.pinv(cov_2d)
-            
-            inside = 0
-            for k in range(K):
-                diff_2d = vae_samples_i[k, idx:idx+2] - center_2d
-                dist_sq_2d = diff_2d @ cov_inv_2d @ diff_2d
-                if dist_sq_2d <= threshold_2d:
-                    inside += 1
-            
-            timestep_cov[t] = inside / K
-        
-        timestep_coverages.append(timestep_cov)
-        
-        if (i + 1) % 50 == 0:
-            print(f"  Processed {i+1}/{n_test}...")
+            inside = sum(
+                1 for k in range(K)
+                if (vae_samples[i, k, idx:idx+2] - center_2d) @ 
+                   cov_inv @ 
+                   (vae_samples[i, k, idx:idx+2] - center_2d) <= threshold_2d
+            )
+            timestep_agreements[i, t] = inside / K
     
-    joint_coverages = np.array(joint_coverages)
-    timestep_coverages = np.array(timestep_coverages)
-    
-    # Summary statistics
     print("\n" + "="*70)
-    print("COVERAGE STATISTICS")
+    print("AGREEMENT STATISTICS")
     print("="*70)
     print(f"K (VAE samples per trajectory): {K}")
     print(f"Expected coverage (1-α): {(1-alpha)*100:.1f}%")
-    print(f"\nJoint Coverage (24D ellipsoid):")
-    print(f"  Mean:   {joint_coverages.mean()*100:.2f}%")
-    print(f"  Std:    {joint_coverages.std()*100:.2f}%")
-    print(f"  Median: {np.median(joint_coverages)*100:.2f}%")
-    print(f"  Range:  [{joint_coverages.min()*100:.1f}%, {joint_coverages.max()*100:.1f}%]")
-    print(f"\nPer-Timestep Coverage (2D ellipses):")
-    print(f"  Mean across all: {timestep_coverages.mean()*100:.2f}%")
-    print(f"  Early steps (1-4): {timestep_coverages[:, :4].mean()*100:.2f}%")
-    print(f"  Late steps (9-12): {timestep_coverages[:, -4:].mean()*100:.2f}%")
+    print(f"\nPer-Timestep Agreement (2D ellipses):")
+    print(f"  Mean across all: {timestep_agreements.mean()*100:.2f}%")
+    print(f"  Early steps (1-4): {timestep_agreements[:, :4].mean()*100:.2f}%")
+    print(f"  Late steps (9-12): {timestep_agreements[:, -4:].mean()*100:.2f}%")
     
-    deviation = (joint_coverages.mean() - (1-alpha)) * 100
+    deviation = (joint_agreements.mean() - (1-alpha)) * 100
     print(f"\nDeviation from expected: {deviation:+.2f}%")
     
     if abs(deviation) < 5:
@@ -349,16 +334,50 @@ def compute_coverage_metrics(vae_samples, spci, alpha=0.1):
     
     print("="*70)
     
-    return joint_coverages, timestep_coverages
+    return joint_agreements, timestep_agreements
+
+
+# ============================================================================
+# METRICS COMPUTATION
+# ============================================================================
+
+def compute_trajectory_metrics(vae_samples, conformal_center, ground_truth, K):
+    """Compute minADE, minFDE for VAE and ADE, FDE for deterministic."""
+    # Reshape trajectories
+    vae_trajs = vae_samples.reshape(K, 12, 2)  # (K, 12, 2)
+    det_traj = conformal_center.reshape(12, 2)  # (12, 2)
+    gt_traj = ground_truth.reshape(12, 2)      # (12, 2)
+    
+    # VAE stochastic metrics (minADE, minFDE)
+    vae_ades = []
+    vae_fdes = []
+    for k in range(K):
+        # ADE: average displacement across all timesteps
+        distances = np.linalg.norm(vae_trajs[k] - gt_traj, axis=1)
+        ade = np.mean(distances)
+        vae_ades.append(ade)
+        
+        # FDE: final displacement
+        fde = np.linalg.norm(vae_trajs[k, -1] - gt_traj[-1])
+        vae_fdes.append(fde)
+    
+    minADE = np.min(vae_ades)
+    minFDE = np.min(vae_fdes)
+    
+    # Deterministic metrics (ADE, FDE)
+    det_distances = np.linalg.norm(det_traj - gt_traj, axis=1)
+    det_ADE = np.mean(det_distances)
+    det_FDE = np.linalg.norm(det_traj[-1] - gt_traj[-1])
+    
+    return minADE, minFDE, det_ADE, det_FDE
 
 
 # ============================================================================
 # STAGE 4: VISUALIZATIONS
 # ============================================================================
 
-def visualize_comparison(vae_samples, spci, Y_test, sample_idx, alpha, K):
-    """Create comprehensive visualization for a single sample."""
-    
+def visualize_predictions(vae_samples, spci, Y_test, sample_idx, alpha, K):
+    """Create prediction visualization (Figure 1)."""
     # Get data
     vae_trajs = vae_samples[sample_idx].reshape(K, 12, 2)
     conformal_center = spci.Ensemble_pred_interval_centers[sample_idx]
@@ -366,55 +385,43 @@ def visualize_comparison(vae_samples, spci, Y_test, sample_idx, alpha, K):
     conformal_cov = spci.global_cov
     ground_truth = Y_test[sample_idx].reshape(12, 2)
     
-    # Compute coverage for this sample
-    threshold_2d = chi2.ppf(1 - alpha, df=2)
-    timestep_cov = np.zeros(12)
-    for t in range(12):
-        idx = t * 2
-        center_2d = conformal_center[idx:idx+2]
-        cov_2d = conformal_cov[idx:idx+2, idx:idx+2]
-        cov_inv = np.linalg.pinv(cov_2d)
-        
-        inside = sum(1 for k in range(K) 
-                    if (vae_samples[sample_idx, k, idx:idx+2] - center_2d) @ 
-                       cov_inv @ 
-                       (vae_samples[sample_idx, k, idx:idx+2] - center_2d) <= threshold_2d)
-        timestep_cov[t] = inside / K
+    # Compute metrics
+    minADE, minFDE, det_ADE, det_FDE = compute_trajectory_metrics(
+        vae_samples[sample_idx], conformal_center, Y_test[sample_idx], K
+    )
     
-    # Create figure
-    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+    # Create figure with 2x2 layout (2 plots on top, text below)
+    fig = plt.figure(figsize=(16, 8))
+    gs = fig.add_gridspec(2, 2, height_ratios=[3, 1], hspace=0.3)
+    
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax2 = fig.add_subplot(gs[0, 1])
+    ax3 = fig.add_subplot(gs[1, :])
+    
     colors = plt.cm.viridis(np.linspace(0, 1, 12))
+    threshold_2d = chi2.ppf(1 - alpha, df=2)
     
-    # Plot 1: VAE samples only
-    ax = axes[0, 0]
+    # Plot 1: VAE Stochastic Samples
+    ax = ax1
     for k in range(K):
         ax.plot(vae_trajs[k, :, 0], vae_trajs[k, :, 1], 'b-', alpha=0.3, linewidth=1)
-    ax.scatter(vae_trajs[:, 0, 0], vae_trajs[:, 0, 1], c='green', s=30, alpha=0.5)
-    ax.scatter(vae_trajs[:, -1, 0], vae_trajs[:, -1, 1], c='red', s=30, alpha=0.5)
-    ax.set_title(f'VAE Stochastic Samples (K={K})')
+    ax.scatter(vae_trajs[:, 0, 0], vae_trajs[:, 0, 1], c='green', s=30, alpha=0.5, label='Start points')
+    ax.scatter(vae_trajs[:, -1, 0], vae_trajs[:, -1, 1], c='red', s=30, alpha=0.5, label='End points')
+    ax.plot(ground_truth[:, 0], ground_truth[:, 1], 'g--', linewidth=2.5, 
+            marker='s', markersize=6, label='Ground Truth', zorder=4)
+    ax.set_title(f'VAE Stochastic Samples (K={K})', fontsize=12, fontweight='bold')
     ax.set_xlabel('X Position')
     ax.set_ylabel('Y Position')
+    ax.legend(loc='best')
     ax.grid(alpha=0.3)
     ax.axis('equal')
     
-    # Plot 2: Comparison
-    ax = axes[0, 1]
-    for k in range(K):
-        ax.plot(vae_trajs[k, :, 0], vae_trajs[k, :, 1], 'gray', alpha=0.15, linewidth=0.5)
-    ax.plot(conformal_traj[:, 0], conformal_traj[:, 1], 'r-', linewidth=3, 
-           marker='o', markersize=6, label='Conformal (Deterministic)', zorder=5)
-    ax.plot(ground_truth[:, 0], ground_truth[:, 1], 'g--', linewidth=2,
-           marker='s', markersize=6, label='Ground Truth', zorder=4)
-    ax.set_title(f'Sample {sample_idx}: VAE vs Conformal')
-    ax.legend()
-    ax.grid(alpha=0.3)
-    ax.axis('equal')
-    
-    # Plot 3: VAE + Conformal ellipses
-    ax = axes[0, 2]
+    # Plot 2: VAE + Conformal Ellipses + Deterministic + Ground Truth
+    ax = ax2
     for k in range(K):
         ax.plot(vae_trajs[k, :, 0], vae_trajs[k, :, 1], 'k-', alpha=0.2, linewidth=0.5)
     
+    # Draw conformal ellipses
     for t in range(12):
         idx = t * 2
         center_2d = conformal_center[idx:idx+2]
@@ -431,14 +438,105 @@ def visualize_comparison(vae_samples, spci, Y_test, sample_idx, alpha, K):
                          edgecolor=colors[t], linewidth=2)
         ax.add_patch(ellipse)
     
-    ax.plot(conformal_traj[:, 0], conformal_traj[:, 1], 'r-', linewidth=2, marker='o')
-    ax.set_title(f'VAE + Conformal Ellipses ({int((1-alpha)*100)}%)')
+    # Plot trajectories
+    ax.plot(conformal_traj[:, 0], conformal_traj[:, 1], 'r-', linewidth=2.5, 
+            marker='o', markersize=6, label='ASTRA Deterministic Prediction', zorder=5)
+    ax.plot(ground_truth[:, 0], ground_truth[:, 1], 'g--', linewidth=2.5,
+            marker='s', markersize=6, label='Ground Truth', zorder=4)
+    
+    # Dummy elements for legend
+    from matplotlib.lines import Line2D
+    legend_elements = [
+        Line2D([0], [0], color='k', alpha=0.4, linewidth=1.5, label='VAE stochastic samples'),
+        Line2D([0], [0], color='r', linewidth=2.5, marker='o', label='ASTRA Deterministic Prediction'),
+        Line2D([0], [0], color='g', linestyle='--', linewidth=2.5, marker='s', label='Ground Truth'),
+        plt.Rectangle((0, 0), 1, 1, fc=colors[6], alpha=0.3, ec=colors[6], label='Conformal ellipses (90%)')
+    ]
+    
+    ax.set_title(f'ASTRA Stochastic (VAE) & Deterministic Predictions\nwith Conformal Ellipses (90%)', 
+                 fontsize=12, fontweight='bold')
+    ax.legend(handles=legend_elements, loc='best', fontsize=9)
     ax.grid(alpha=0.3)
     ax.axis('equal')
     
-    # Plot 4: Detailed timestep
-    ax = axes[1, 0]
-    t = 5  # Middle timestep
+    # Add colorbar for timesteps
+    sm = plt.cm.ScalarMappable(cmap=plt.cm.viridis, norm=plt.Normalize(vmin=1, vmax=12))
+    sm.set_array([])
+    cbar = plt.colorbar(sm, ax=ax, fraction=0.046, pad=0.04)
+    cbar.set_label('Timestep', fontsize=10)
+    
+    # Text panel below
+    ax = ax3
+    ax.axis('off')
+    
+    metrics_text = f"""
+Sample {sample_idx} Metrics                                                    Configuration
+{'='*30}                                                    {'='*20}
+
+Stochastic (VAE):                                                  K Samples: {K}
+  minADE: {minADE:.4f}                                                      Coverage: {(1-alpha)*100:.0f}%
+  minFDE: {minFDE:.4f}
+
+Deterministic:
+  ADE: {det_ADE:.4f}
+  FDE: {det_FDE:.4f}
+"""
+    
+    ax.text(0.5, 0.5, metrics_text, fontsize=11, family='monospace',
+            verticalalignment='center', horizontalalignment='center')
+    
+    os.makedirs('results/figures', exist_ok=True)
+    plt.savefig(f'results/figures/vae_conformal_predictions_sample_{sample_idx}.png', dpi=150, bbox_inches='tight')
+    plt.close()
+    
+    # Return metrics for CSV saving
+    return {
+        'sample_idx': sample_idx,
+        'minADE': minADE,
+        'minFDE': minFDE,
+        'det_ADE': det_ADE,
+        'det_FDE': det_FDE,
+        'K_samples': K,
+        'coverage_level': (1-alpha)*100
+    }
+
+
+def visualize_agreement(vae_samples, spci, Y_test, sample_idx, alpha, K):
+    """Create agreement visualization (Figure 2)."""
+    # Get data
+    vae_trajs = vae_samples[sample_idx].reshape(K, 12, 2)
+    conformal_center = spci.Ensemble_pred_interval_centers[sample_idx]
+    conformal_cov = spci.global_cov
+    ground_truth = Y_test[sample_idx].reshape(12, 2)
+    
+    # Compute agreement for this sample
+    threshold_2d = chi2.ppf(1 - alpha, df=2)
+    timestep_agreement = np.zeros(12)
+    for t in range(12):
+        idx = t * 2
+        center_2d = conformal_center[idx:idx+2]
+        cov_2d = conformal_cov[idx:idx+2, idx:idx+2]
+        cov_inv = np.linalg.pinv(cov_2d)
+        
+        inside = sum(1 for k in range(K) 
+                    if (vae_samples[sample_idx, k, idx:idx+2] - center_2d) @ 
+                       cov_inv @ 
+                       (vae_samples[sample_idx, k, idx:idx+2] - center_2d) <= threshold_2d)
+        timestep_agreement[t] = inside / K
+    
+    # Create figure with 2x2 layout (2 plots on top, text below)
+    fig = plt.figure(figsize=(16, 8))
+    gs = fig.add_gridspec(2, 2, height_ratios=[3, 1], hspace=0.3)
+    
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax2 = fig.add_subplot(gs[0, 1])
+    ax3 = fig.add_subplot(gs[1, :])
+    
+    colors = plt.cm.viridis(np.linspace(0, 1, 12))
+    
+    # Plot 1: Timestep 6 detailed view
+    ax = ax1
+    t = 5  # Timestep 6 (0-indexed)
     idx = t * 2
     center_2d = conformal_center[idx:idx+2]
     cov_2d = conformal_cov[idx:idx+2, idx:idx+2]
@@ -454,10 +552,10 @@ def visualize_comparison(vae_samples, spci, Y_test, sample_idx, alpha, K):
     vae_points = vae_trajs[:, t, :]
     ax.scatter(vae_points[inside_mask, 0], vae_points[inside_mask, 1],
               c='green', s=80, alpha=0.6, edgecolors='darkgreen', linewidths=2,
-              label=f'Inside ({inside_mask.sum()})')
+              label=f'VAE samples inside ({inside_mask.sum()})')
     ax.scatter(vae_points[~inside_mask, 0], vae_points[~inside_mask, 1],
               c='red', s=80, alpha=0.6, edgecolors='darkred', linewidths=2,
-              label=f'Outside ({K - inside_mask.sum()})')
+              label=f'VAE samples outside ({K - inside_mask.sum()})')
     
     eigvals, eigvecs = np.linalg.eigh(cov_2d)
     eigvals = np.maximum(eigvals, 1e-8)
@@ -466,134 +564,87 @@ def visualize_comparison(vae_samples, spci, Y_test, sample_idx, alpha, K):
     height = 2 * np.sqrt(threshold_2d * eigvals[1])
     
     ellipse = Ellipse(center_2d, width, height, angle=angle,
-                     facecolor='blue', alpha=0.15, edgecolor='blue', linewidth=3)
+                     facecolor='blue', alpha=0.15, edgecolor='blue', linewidth=3,
+                     label='Conformal ellipse (90%)')
     ax.add_patch(ellipse)
-    ax.plot(center_2d[0], center_2d[1], 'b*', markersize=20)
+    ax.plot(center_2d[0], center_2d[1], 'b*', markersize=20, 
+            label='Ellipse center')
     ax.plot(ground_truth[t, 0], ground_truth[t, 1], 'go', markersize=14,
-           markeredgecolor='black', markeredgewidth=2)
+           markeredgecolor='black', markeredgewidth=2.5, label='Ground truth')
     
-    ax.set_title(f'Timestep {t+1}: Coverage = {timestep_cov[t]*100:.1f}%')
-    ax.legend()
+    ax.set_title(f'Timestep 6: Agreement = {timestep_agreement[t]*100:.1f}%', 
+                 fontsize=12, fontweight='bold')
+    ax.legend(loc='best', fontsize=8)
     ax.grid(alpha=0.3)
     ax.axis('equal')
     
-    # Plot 5: Per-timestep coverage
-    ax = axes[1, 1]
-    bars = ax.bar(range(1, 13), timestep_cov, color=colors, alpha=0.7,
+    # Plot 2: Per-timestep agreement
+    ax = ax2
+    bars = ax.bar(range(1, 13), timestep_agreement, color=colors, alpha=0.7,
                  edgecolor='black', linewidth=1)
     ax.axhline(y=1-alpha, color='r', linestyle='--', linewidth=2,
               label=f'Expected: {(1-alpha)*100:.0f}%')
-    ax.set_xlabel('Timestep')
-    ax.set_ylabel('Coverage')
-    ax.set_title('Per-Timestep Coverage')
+    ax.set_xlabel('Timestep', fontsize=11)
+    ax.set_ylabel('Agreement', fontsize=11)
+    ax.set_title('Per-Timestep Agreement', fontsize=12, fontweight='bold')
     ax.set_ylim([0, 1.05])
-    ax.legend()
+    ax.legend(fontsize=9)
     ax.grid(alpha=0.3)
     
-    # Plot 6: Statistics
-    ax = axes[1, 2]
+    # Text panel below
+    ax = ax3
     ax.axis('off')
-    
-    joint_cov = np.mean([
-        (vae_samples[sample_idx, k] - conformal_center) @ 
-        np.linalg.pinv(conformal_cov) @ 
-        (vae_samples[sample_idx, k] - conformal_center) <= chi2.ppf(1-alpha, df=24)
-        for k in range(K)
-    ])
     
     stats_text = f"""
-    Sample {sample_idx} Statistics
-    {'='*32}
+Sample {sample_idx} Statistics                                                    Configuration
+{'='*30}                                                    {'='*20}
+
+Per-Timestep Agreement:                                            K Samples: {K}
+  Mean:  {timestep_agreement.mean()*100:.1f}%                                                      Coverage: {(1-alpha)*100:.0f}%
+  Min:   {timestep_agreement.min()*100:.1f}%
+  Max:   {timestep_agreement.max()*100:.1f}%
+"""
     
-    K samples: {K}
-    Confidence: {(1-alpha)*100:.0f}%
+    ax.text(0.5, 0.5, stats_text, fontsize=11, family='monospace',
+            verticalalignment='center', horizontalalignment='center')
     
-    Joint Coverage:
-      {joint_cov*100:.1f}% of VAE samples
-      Expected: {(1-alpha)*100:.0f}%
+    os.makedirs('results/figures', exist_ok=True)
+    plt.savefig(f'results/figures/vae_conformal_agreement_sample_{sample_idx}.png', dpi=150, bbox_inches='tight')
+    plt.close()
     
-    Per-Timestep:
-      Mean:  {timestep_cov.mean()*100:.1f}%
-      Min:   {timestep_cov.min()*100:.1f}%
-      Max:   {timestep_cov.max()*100:.1f}%
-    """
-    
-    ax.text(0.05, 0.5, stats_text, fontsize=10, family='monospace',
-           verticalalignment='center')
-    
-    plt.tight_layout()
-    plt.savefig(f'vae_conformal_sample_{sample_idx}.png', dpi=150, bbox_inches='tight')
-    plt.show()
+    # Return statistics for CSV saving
+    return {
+        'sample_idx': sample_idx,
+        'K_samples': K,
+        'coverage_level': (1-alpha)*100,
+        'agreement_mean': timestep_agreement.mean()*100,
+        'agreement_min': timestep_agreement.min()*100,
+        'agreement_max': timestep_agreement.max()*100
+    }
 
 
-def plot_aggregate(joint_coverages, timestep_coverages, alpha, K):
-    """Plot aggregate statistics."""
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+def plot_aggregate(joint_agreements, timestep_agreements, alpha, K):
+    """Plot aggregate agreement statistics across all samples."""
+    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
     
-    # Joint coverage distribution
-    ax = axes[0, 0]
-    ax.hist(joint_coverages, bins=30, alpha=0.7, color='steelblue', edgecolor='black')
-    ax.axvline(1-alpha, color='red', linestyle='--', linewidth=3,
-              label=f'Expected: {(1-alpha)*100:.0f}%')
-    ax.axvline(joint_coverages.mean(), color='green', linestyle='-', linewidth=3,
-              label=f'Mean: {joint_coverages.mean()*100:.1f}%')
-    ax.set_xlabel('Coverage')
-    ax.set_ylabel('Frequency')
-    ax.set_title(f'Joint Coverage Distribution (K={K})')
-    ax.legend()
-    ax.grid(alpha=0.3)
-    
-    # Per-timestep mean
-    ax = axes[0, 1]
-    mean_cov = timestep_coverages.mean(axis=0)
-    std_cov = timestep_coverages.std(axis=0)
-    ax.errorbar(range(1, 13), mean_cov, yerr=std_cov, fmt='o-',
-               linewidth=2, markersize=8, capsize=5, color='steelblue')
-    ax.axhline(1-alpha, color='red', linestyle='--', linewidth=2)
-    ax.set_xlabel('Timestep')
-    ax.set_ylabel('Mean Coverage')
-    ax.set_title('Mean Per-Timestep Coverage')
+    # Per-timestep mean agreement
+    mean_agreement = timestep_agreements.mean(axis=0)
+    std_agreement = timestep_agreements.std(axis=0)
+    ax.errorbar(range(1, 13), mean_agreement, yerr=std_agreement, fmt='o-',
+               linewidth=2, markersize=8, capsize=5, color='steelblue', label='Mean Agreement')
+    ax.axhline(1-alpha, color='red', linestyle='--', linewidth=2, label=f'Expected: {(1-alpha)*100:.0f}%')
+    ax.set_xlabel('Timestep', fontsize=12)
+    ax.set_ylabel('Mean Agreement', fontsize=12)
+    ax.set_title('Mean Per-Timestep Agreement Across All Test Samples', fontsize=14, fontweight='bold')
     ax.set_ylim([0, 1.05])
+    ax.legend(fontsize=11)
     ax.grid(alpha=0.3)
-    
-    # Coverage variability
-    ax = axes[1, 0]
-    ax.scatter(range(len(joint_coverages)), joint_coverages, s=20, alpha=0.5)
-    ax.axhline(1-alpha, color='red', linestyle='--', linewidth=2)
-    ax.axhline(joint_coverages.mean(), color='green', linestyle='-', alpha=0.7)
-    ax.set_xlabel('Sample Index')
-    ax.set_ylabel('Coverage')
-    ax.set_title('Coverage Variability')
-    ax.grid(alpha=0.3)
-    
-    # Summary
-    ax = axes[1, 1]
-    ax.axis('off')
-    deviation = (joint_coverages.mean() - (1-alpha)) * 100
-    summary = f"""
-    AGGREGATE STATISTICS
-    {'='*28}
-    
-    Samples: {len(joint_coverages)}
-    K per sample: {K}
-    Confidence: {(1-alpha)*100:.0f}%
-    
-    JOINT COVERAGE:
-      Mean:   {joint_coverages.mean()*100:.2f}%
-      Std:    {joint_coverages.std()*100:.2f}%
-      Median: {np.median(joint_coverages)*100:.2f}%
-      
-    Expected: {(1-alpha)*100:.0f}%
-    Deviation: {deviation:+.2f}%
-    
-    TIMESTEP AVERAGE:
-      {mean_cov.mean()*100:.2f}%
-    """
-    ax.text(0.05, 0.5, summary, fontsize=10, family='monospace', va='center')
     
     plt.tight_layout()
-    plt.savefig('vae_conformal_aggregate.png', dpi=150, bbox_inches='tight')
-    plt.show()
+    os.makedirs('results/figures', exist_ok=True)
+    plt.savefig('results/figures/vae_conformal_aggregate.png', dpi=150, bbox_inches='tight')
+    plt.close()
+    print("✓ Saved aggregate plot to: results/figures/vae_conformal_aggregate.png")
 
 
 # ============================================================================
@@ -601,8 +652,7 @@ def plot_aggregate(joint_coverages, timestep_coverages, alpha, K):
 # ============================================================================
 
 def main():
-    """Complete experimental pipeline in one script."""
-    
+    """Complete experimental pipeline."""
     # Configuration
     config_path = './configs/eth.yaml'
     config_path_vae = './configs/eth_vae.yaml'
@@ -646,11 +696,11 @@ def main():
     astra_wrapper.fit(X_train, Y_train)
     print("✓ ASTRA initialized with pretrained weights")
     
-    # ========== STAGE 1: Conformal Prediction ==========
+    # STAGE 1: Conformal Prediction
     spci = compute_conformal_regions(X_train, Y_train, X_test, Y_test, 
                                      astra_wrapper, alpha)
     
-    # ========== STAGE 2: VAE Samples ==========
+    # STAGE 2: VAE Samples
     vae_samples, K = generate_vae_samples(
         X_test, config_path_vae,
         f'./pretrained_astra_weights/{subset}_best_model_vae.pth',
@@ -658,36 +708,55 @@ def main():
         device, subset
     )
     
-    # ========== STAGE 3: Coverage Metrics ==========
-    joint_coverages, timestep_coverages = compute_coverage_metrics(
+    # STAGE 3: Agreement Metrics
+    joint_agreements, timestep_agreements = compute_agreement_metrics(
         vae_samples, spci, alpha
     )
     
-    # ========== STAGE 4: Visualizations ==========
+    # STAGE 4: Visualizations
     print("\n" + "="*70)
     print("STAGE 4: GENERATING VISUALIZATIONS")
     print("="*70)
     
-    # Individual samples
-    for i in range(min(n_viz, len(Y_test))):
-        print(f"Creating visualization for sample {i}...")
-        visualize_comparison(vae_samples, spci, Y_test, i, alpha, K)
+    # Collect statistics for CSV export
+    prediction_metrics = []
+    agreement_statistics = []
     
-    # Aggregate
-    print("Creating aggregate plots...")
-    plot_aggregate(joint_coverages, timestep_coverages, alpha, K)
+    for i in range(min(n_viz, len(Y_test))):
+        print(f"Creating visualizations for sample {i}...")
+        metrics = visualize_predictions(vae_samples, spci, Y_test, i, alpha, K)
+        stats = visualize_agreement(vae_samples, spci, Y_test, i, alpha, K)
+        prediction_metrics.append(metrics)
+        agreement_statistics.append(stats)
+    
+    # Save statistics to CSV files
+    os.makedirs('results/csvs', exist_ok=True)
+    
+    metrics_df = pd.DataFrame(prediction_metrics)
+    metrics_df.to_csv('results/csvs/vae_conformal_predictions_metrics.csv', index=False)
+    print(f"\n✓ Saved prediction metrics to: results/csvs/vae_conformal_predictions_metrics.csv")
+    
+    stats_df = pd.DataFrame(agreement_statistics)
+    stats_df.to_csv('results/csvs/vae_conformal_agreement_statistics.csv', index=False)
+    print(f"✓ Saved agreement statistics to: results/csvs/vae_conformal_agreement_statistics.csv")
+    print(f"✓ Saved {n_viz} figure pairs to: results/figures/")
+    
+    # Generate aggregate plot
+    print("\nCreating aggregate plot...")
+    plot_aggregate(joint_agreements, timestep_agreements, alpha, K)
     
     # Final summary
     print("\n" + "="*70)
     print("EXPERIMENT COMPLETE!")
     print("="*70)
-    print("\nKEY FINDINGS:")
-    print(f"  VAE Coverage:  {joint_coverages.mean()*100:.2f}% ± {joint_coverages.std()*100:.2f}%")
-    print(f"  Expected:      {(1-alpha)*100:.0f}%")
-    print(f"  Deviation:     {(joint_coverages.mean()-(1-alpha))*100:+.2f}%")
     print("\nGenerated files:")
-    print(f"  - vae_conformal_sample_0.png ... sample_{n_viz-1}.png")
-    print(f"  - vae_conformal_aggregate.png")
+    print(f"  PNG visualizations:")
+    print(f"    - results/figures/vae_conformal_predictions_sample_0.png ... sample_{n_viz-1}.png")
+    print(f"    - results/figures/vae_conformal_agreement_sample_0.png ... sample_{n_viz-1}.png")
+    print(f"    - results/figures/vae_conformal_aggregate.png")
+    print(f"  CSV statistics:")
+    print(f"    - results/csvs/vae_conformal_predictions_metrics.csv")
+    print(f"    - results/csvs/vae_conformal_agreement_statistics.csv")
     print("="*70)
 
 

@@ -83,7 +83,7 @@ if __name__ == "__main__":
     # ============ building model ... ============
 
     model = ASTRA_model(cfg)
-    model.load_state_dict(torch.load(f'./pretrained_astra_weights/{cfg.SUBSET}_best_model.pth', map_location=torch.device('cpu')))
+    model.load_state_dict(torch.load(f'./pretrained_astra_weights/{cfg.SUBSET}_ADE_0.238_FDE_0.402_best_model.pth', map_location=torch.device('cpu')),strict=False)
     logger.info("ASTRA Model is built.")
     
     if cfg.MODEL.USE_PRETRAINED_UNET:
