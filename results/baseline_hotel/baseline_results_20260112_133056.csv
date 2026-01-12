@@ -1,0 +1,3 @@
+subset,method,coverage,volume,time,alpha,n_calib,n_test
+hotel,coordinate_wise,0.675,3.0865736759255885e+17,332.52042961120605,0.1,1077,120
+hotel,multidimspci,0.75,4.0830870831658406e-10,136.12692642211914,0.1,1077,120

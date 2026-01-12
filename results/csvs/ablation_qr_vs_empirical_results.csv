@@ -1,3 +1,5 @@
 experiment,subset,alpha,rank,method,use_qr,coverage,volume,time
 qr_vs_empirical,eth,0.1,,Empirical Quantile (EnbPI),False,0.8648648648648649,0.0004536983396508453,9.964710235595703
 qr_vs_empirical,eth,0.1,,Quantile Regression (SPCI),True,0.9459459459459459,1.2774341087734298e-05,18.451924800872803
+qr_vs_empirical,hotel,0.1,,Empirical Quantile (EnbPI),False,0.85,7.02787681420804e-12,185.34989190101624
+qr_vs_empirical,hotel,0.1,,Quantile Regression (SPCI),True,0.75,4.0830870831658406e-10,138.60060620307922

@@ -1,0 +1,18 @@
+subset,experiment,status,time,error
+hotel,rank,failed,96.32128977775574,"Traceback (most recent call last):
+  File ""C:\Users\engs2992\Documents\ConformalASTRA\temp_subset_scripts\hotel_experiment_ablation_rank.py"", line 242, in <module>
+    result = run_with_rank(
+  File """
+hotel,calibration_size,failed,350.72354078292847,"ic| spatial_features.shape: torch.Size([1, 8, 1, 2])
+ic| spatial_encodings.shape: torch.Size([1, 8, 1, 16])
+ic| temporal_encodings.shape: torch.Size([1, 8, 1, 8])
+ic| unet_features.shape: torch.Size(["
+hotel,qr_vs_empirical,failed,85.15732336044312,"Traceback (most recent call last):
+  File ""C:\Users\engs2992\Documents\ConformalASTRA\temp_subset_scripts\hotel_experiment_ablation_qr_vs_empirical.py"", line 255, in <module>
+    result_empirical = ru"
+hotel,past_window,failed,84.49181246757507,"Traceback (most recent call last):
+  File ""C:\Users\engs2992\Documents\ConformalASTRA\temp_subset_scripts\hotel_experiment_ablation_past_window.py"", line 236, in <module>
+    result = run_with_past_wi"
+hotel,global_vs_local,failed,82.4322898387909,"Traceback (most recent call last):
+  File ""C:\Users\engs2992\Documents\ConformalASTRA\temp_subset_scripts\hotel_experiment_ablation_global_vs_local.py"", line 263, in <module>
+    result_global = run_w"

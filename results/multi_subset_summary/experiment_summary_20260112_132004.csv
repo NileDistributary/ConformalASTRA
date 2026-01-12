@@ -1,0 +1,6 @@
+subset,experiment,status,time,error
+hotel,rank,success,863.5238392353058,
+hotel,calibration_size,success,614.1057920455933,
+hotel,qr_vs_empirical,success,395.034880399704,
+hotel,past_window,success,874.6847448348999,
+hotel,global_vs_local,success,381.7323534488678,
