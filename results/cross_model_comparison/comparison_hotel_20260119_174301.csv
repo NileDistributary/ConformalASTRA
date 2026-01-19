@@ -1,0 +1,3 @@
+model,model_name,weights,ade,fde,coverage,volume,time
+hotel_model,Hotel Model (LOSO),pretrained_astra_weights/hotel_best_model.pth,0.39520204,0.7708801,0.8166666666666667,1.618663268913362e-11,266.1794331073761
+eth_model,ETH Model (General),pretrained_astra_weights/eth_best_model.pth,2.416047,3.3311408,0.8083333333333333,2295923834.629059,169.17977905273438
