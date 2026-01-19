@@ -392,7 +392,7 @@ def main():
     
     # Plot
     fig = create_comparison_plot(results_cw, results_spci, ALPHA, SUBSET)
-    fig_path = f'results/baseline_hotel/baseline_comparison_{timestamp}.png'
+    fig_path = f'results/baseline_hotel/baseline_comparison_{timestamp}.svg'
     fig.savefig(fig_path, dpi=300, bbox_inches='tight')
     plt.close(fig)
     print(f"✓ Plot saved to: {fig_path}")

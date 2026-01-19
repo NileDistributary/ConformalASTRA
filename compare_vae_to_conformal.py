@@ -486,7 +486,7 @@ Configuration:
             transform=ax.transAxes)
     
     os.makedirs('results/figures', exist_ok=True)
-    plt.savefig(f'results/figures/vae_conformal_predictions_sample_{sample_idx}.png', dpi=150, bbox_inches='tight')
+    plt.savefig(f'results/figures/vae_conformal_predictions_sample_{sample_idx}.svg', bbox_inches='tight')
     plt.close()
     
     # Return metrics for CSV saving
@@ -609,7 +609,7 @@ Per-Timestep Agreement:            Configuration:
             transform=ax.transAxes)
     
     os.makedirs('results/figures', exist_ok=True)
-    plt.savefig(f'results/figures/vae_conformal_agreement_sample_{sample_idx}.png', dpi=150, bbox_inches='tight')
+    plt.savefig(f'results/figures/vae_conformal_agreement_sample_{sample_idx}.svg', bbox_inches='tight')
     plt.close()
     
     # Return statistics for CSV saving
@@ -642,9 +642,9 @@ def plot_aggregate(joint_agreements, timestep_agreements, alpha, K):
     
     plt.tight_layout()
     os.makedirs('results/figures', exist_ok=True)
-    plt.savefig('results/figures/vae_conformal_aggregate.png', dpi=150, bbox_inches='tight')
+    plt.savefig('results/figures/vae_conformal_aggregate.svg', bbox_inches='tight')
     plt.close()
-    print("✓ Saved aggregate plot to: results/figures/vae_conformal_aggregate.png")
+    print("✓ Saved aggregate plot to: results/figures/vae_conformal_aggregate.svg")
 
 
 # ============================================================================
@@ -750,10 +750,10 @@ def main():
     print("EXPERIMENT COMPLETE!")
     print("="*70)
     print("\nGenerated files:")
-    print(f"  PNG visualizations:")
-    print(f"    - results/figures/vae_conformal_predictions_sample_0.png ... sample_{n_viz-1}.png")
-    print(f"    - results/figures/vae_conformal_agreement_sample_0.png ... sample_{n_viz-1}.png")
-    print(f"    - results/figures/vae_conformal_aggregate.png")
+    print(f"  SVG visualizations:")
+    print(f"    - results/figures/vae_conformal_predictions_sample_0.svg ... sample_{n_viz-1}.svg")
+    print(f"    - results/figures/vae_conformal_agreement_sample_0.svg ... sample_{n_viz-1}.svg")
+    print(f"    - results/figures/vae_conformal_aggregate.svg")
     print(f"  CSV statistics:")
     print(f"    - results/csvs/vae_conformal_predictions_metrics.csv")
     print(f"    - results/csvs/vae_conformal_agreement_statistics.csv")

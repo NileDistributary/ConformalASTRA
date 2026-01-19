@@ -502,7 +502,7 @@ def main():
     # Save plot
     if len(all_results) > 0:
         fig = create_comparison_plots(all_results, TEST_SUBSET, ALPHA)
-        fig_path = f'results/cross_model_comparison/comparison_{TEST_SUBSET}_{timestamp}.png'
+        fig_path = f'results/cross_model_comparison/comparison_{TEST_SUBSET}_{timestamp}.svg'
         fig.savefig(fig_path, dpi=300, bbox_inches='tight')
         plt.close(fig)
         print(f"✓ Plot saved to: {fig_path}")

@@ -353,14 +353,14 @@ def main():
         if len(df['subset'].unique()) > 1:
             # Coverage comparison
             fig_coverage = plot_cross_subset_comparison(df, metric='coverage')
-            fig_path = os.path.join(output_dir, f'coverage_comparison_{timestamp}.png')
+            fig_path = os.path.join(output_dir, f'coverage_comparison_{timestamp}.svg')
             fig_coverage.savefig(fig_path, dpi=300, bbox_inches='tight')
             plt.close(fig_coverage)
             print(f"✓ Saved coverage plot: {fig_path}")
             
             # Volume comparison
             fig_volume = plot_cross_subset_comparison(df, metric='volume')
-            fig_path = os.path.join(output_dir, f'volume_comparison_{timestamp}.png')
+            fig_path = os.path.join(output_dir, f'volume_comparison_{timestamp}.svg')
             fig_volume.savefig(fig_path, dpi=300, bbox_inches='tight')
             plt.close(fig_volume)
             print(f"✓ Saved volume plot: {fig_path}")

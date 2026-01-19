@@ -60,9 +60,9 @@ def save_figure(fig, experiment_name, plot_name, timestamp=True):
     # Create filename
     if timestamp:
         ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f'./results/figures/{experiment_name}_{plot_name}_{ts}.png'
+        filename = f'./results/figures/{experiment_name}_{plot_name}_{ts}.svg'
     else:
-        filename = f'./results/figures/{experiment_name}_{plot_name}.png'
+        filename = f'./results/figures/{experiment_name}_{plot_name}.svg'
     
     # Save figure
     fig.savefig(filename, dpi=300, bbox_inches='tight')

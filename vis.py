@@ -282,9 +282,9 @@ def visualize_on_scene(vae_samples, spci, Y_test, X_test, sample_idx,
     plt.tight_layout()
     
     # Save figure
-    save_path = f'results/figures/scene_overlay_sample_{sample_idx}.png'
+    save_path = f'results/figures/scene_overlay_sample_{sample_idx}.svg'
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.savefig(save_path, bbox_inches='tight')
     plt.close()
     
     return save_path
@@ -645,7 +645,7 @@ Configuration:
             transform=ax.transAxes)
 
     os.makedirs('results/figures', exist_ok=True)
-    plt.savefig(f'results/figures/vae_conformal_predictions_sample_{sample_idx}.png', dpi=150, bbox_inches='tight')
+    plt.savefig(f'results/figures/vae_conformal_predictions_sample_{sample_idx}.svg', bbox_inches='tight')
     plt.close()
 
     return {

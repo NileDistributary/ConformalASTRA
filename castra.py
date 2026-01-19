@@ -371,7 +371,7 @@ if __name__ == "__main__":
             spci, X_test, Y_test, astra_wrapper, 
             sample_idx=i, confidence=0.9
         )
-        plt.savefig(f'multidimspci_trajectory_{i}.png', dpi=150, bbox_inches='tight')
+        plt.savefig(f'multidimspci_trajectory_{i}.svg', bbox_inches='tight')
         plt.show()
     
     print("\n" + "="*70)
